@@ -1,0 +1,43 @@
+How to create a custom machine mx:
+----------------------------------
+1. Generate devicetree with the help of STM32CubeMX tool and put the devicetree
+   generated on 'mx' directory.
+
+   MX directory tree populated by STM32CubeMX tool:
+    <ProjectName>/kernel
+    <ProjectName>/u-boot
+    <ProjectName>/tf-a
+
+    Each directory of <ProjectName> contains devicetree associated to package
+    directory, here: kernel, u-boot and tf-a (Arm Trusted Firmware).
+
+2. Create a machine with the information linked to the content put on mx/<ProjectName>
+
+* create the new machine
+   $> cd conf/machine
+   $> cp stm32mp1-mx.conf stm32mp1-<ProjectName>.conf
+* edit the new machine file: stm32mp1-<ProjectName>.conf
+
+  # Assign CubeMX Board DT and project name
+  CUBEMX_DTB = "stm32mp157c-<ProjectName>-mx"
+  CUBEMX_PROJECT = "<ProjectName>"
+
+CUBEMX_DTB are the prefix of devicetree name to use for several packages: kernel, u-boot, tf-a
+CUBEMX_PROJECT are the name of directory on which the devicetree must be found
+the packages directory, here 'MyProjectName' for a path corresponding to mx/MyProjectName.
+
+For having the support of GPU and thirdparty stuff, you need to accept the
+EULA and the EULA must have a specific name: name of machine
+  $> cd conf/eula
+  $> ln -s ST_EULA stm32mp1-<ProjectName>
+
+3. Compile your software via yocto
+
+  $> cd <path of yocto delivery>
+  (directory which contains meta-st, openembedded-core, meta-openembedded)
+  $> MACHINE=stm32mp1-<ProjectName> DISTRO=openstlinux-weston source meta-st/script/envsetup.sh
+     -> accept the terms of EULA (if you are agree with)
+  $> bitbake st-image-weston
+  -> the image generated are available on
+  build-openstlinuxweston-stm32mp1-<ProjectName>/tmp-glibc/deploy/images/stm32mp1-<ProjectName>
+

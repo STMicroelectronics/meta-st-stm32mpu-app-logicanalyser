@@ -1,0 +1,255 @@
+/* SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause*/
+/*
+ * Copyright (C) 2019, STMicroelectronics - All Rights Reserved
+ * Author: STM32CubeMX code generation for STMicroelectronics.
+ */
+
+#include <dt-bindings/clock/stm32mp1-clksrc.h>
+#include "stm32mp15-mx.h"
+
+#include "stm32mp157-u-boot.dtsi"
+#include "stm32mp15-ddr.dtsi"
+
+/* USER CODE BEGIN includes */
+/* USER CODE END includes */
+
+/ {
+
+	/* USER CODE BEGIN root */
+	aliases {
+		i2c3 = &i2c4;
+		mmc0 = &sdmmc1;
+	};
+	config {
+		u-boot,boot-led = "heartbeat";
+		u-boot,error-led = "error";
+		st,adc_usb_pd = <&adc1 18>, <&adc1 19>;
+		st,fastboot-gpios = <&gpioa 13 GPIO_ACTIVE_LOW>;
+		st,stm32prog-gpios = <&gpioa 14 GPIO_ACTIVE_LOW>;
+	};
+	led {
+		red {
+			label = "error";
+			gpios = <&gpioa 13 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+			status = "okay";
+		};
+
+		blue {
+			default-state = "on";
+		};
+	};
+	/* USER CODE END root */
+
+clocks {
+    /* USER CODE BEGIN clocks */
+    /* USER CODE END clocks */
+
+    clk_lsi: clk-lsi {
+        /* USER CODE BEGIN clocks */
+        /* USER CODE END clocks */
+        u-boot,dm-pre-reloc;
+    };
+    clk_hsi: clk-hsi {
+        /* USER CODE BEGIN clocks */
+        /* USER CODE END clocks */
+        u-boot,dm-pre-reloc;
+    };
+    clk_lse: clk-lse {
+        /* USER CODE BEGIN clocks */
+        /* USER CODE END clocks */
+        st,drive=<LSEDRV_MEDIUM_HIGH>;
+        u-boot,dm-pre-reloc;
+    };
+    clk_hse: clk-hse {
+        /* USER CODE BEGIN clocks */
+        /* USER CODE END clocks */
+        st,digbypass;
+        u-boot,dm-pre-reloc;
+    };
+};
+
+}; /*root*/
+
+&gpioa {
+    compatible = "st,stm32-gpio";
+    u-boot,dm-pre-reloc;
+};
+&gpiob {
+    compatible = "st,stm32-gpio";
+    u-boot,dm-pre-reloc;
+};
+&gpioc {
+    compatible = "st,stm32-gpio";
+    u-boot,dm-pre-reloc;
+};
+&gpiod {
+    compatible = "st,stm32-gpio";
+    u-boot,dm-pre-reloc;
+};
+&gpioe {
+    compatible = "st,stm32-gpio";
+    u-boot,dm-pre-reloc;
+};
+&gpiof {
+    compatible = "st,stm32-gpio";
+    u-boot,dm-pre-reloc;
+};
+&gpiog {
+    compatible = "st,stm32-gpio";
+    u-boot,dm-pre-reloc;
+};
+&gpioh {
+    compatible = "st,stm32-gpio";
+    u-boot,dm-pre-reloc;
+};
+&gpioi {
+    compatible = "st,stm32-gpio";
+    u-boot,dm-pre-reloc;
+};
+&gpioj {
+    compatible = "st,stm32-gpio";
+    u-boot,dm-pre-reloc;
+};
+&gpiok {
+    compatible = "st,stm32-gpio";
+    u-boot,dm-pre-reloc;
+};
+&gpioz {
+    compatible = "st,stm32-gpio";
+    u-boot,dm-pre-reloc;
+};
+
+&rcc {
+    u-boot,dm-pre-reloc;
+    st,clksrc = <
+        CLK_MPU_PLL1P
+        CLK_AXI_PLL2P
+        CLK_MCU_PLL3P
+        CLK_PLL12_HSE
+        CLK_PLL3_HSE
+        CLK_PLL4_HSE
+        CLK_RTC_LSE
+        CLK_MCO1_DISABLED
+        CLK_MCO2_DISABLED
+    >;
+    st,clkdiv = <
+        1         /*MPU*/
+        0         /*AXI*/
+        0         /*MCU*/
+        1         /*APB1*/
+        1         /*APB2*/
+        1         /*APB3*/
+        1         /*APB4*/
+        2         /*APB5*/
+        23         /*RTC*/
+        0         /*MCO1*/
+        0         /*MCO2*/
+    >;
+    st,pkcs = <
+        CLK_CKPER_HSE
+        CLK_ETH_PLL4P
+        CLK_SDMMC12_PLL4P
+        CLK_DSI_DSIPLL
+        CLK_STGEN_HSE
+        CLK_USBPHY_HSE
+        CLK_SPI2S1_DISABLED
+        CLK_SPI2S23_PLL3Q
+        CLK_SPI45_DISABLED
+        CLK_SPI6_DISABLED
+        CLK_I2C46_HSI
+        CLK_SDMMC3_DISABLED
+        CLK_USBO_USBPHY
+        CLK_ADC_CKPER
+        CLK_CEC_LSE
+        CLK_I2C12_HSI
+        CLK_I2C35_DISABLED
+        CLK_UART1_DISABLED
+        CLK_UART24_HSI
+        CLK_UART35_DISABLED
+        CLK_UART6_DISABLED
+        CLK_UART78_DISABLED
+        CLK_SPDIF_DISABLED
+        CLK_SAI1_DISABLED
+        CLK_SAI2_PLL3Q
+        CLK_SAI3_DISABLED
+        CLK_SAI4_DISABLED
+        CLK_RNG1_LSI
+        CLK_LPTIM1_DISABLED
+        CLK_LPTIM23_DISABLED
+        CLK_LPTIM45_DISABLED
+    >;
+    pll1:st,pll@0 {
+        cfg = < 2 80 0 1 1 1>;
+        frac = < 0x800 >;
+        u-boot,dm-pre-reloc;
+    };
+    pll2:st,pll@1 {
+        cfg = < 2 65 1 0 0 7>;
+        frac = < 0x1400 >;
+        u-boot,dm-pre-reloc;
+    };
+    pll3:st,pll@2 {
+        cfg = < 1 33 1 16 36 3>;
+        frac = < 6660 >;
+        u-boot,dm-pre-reloc;
+    };
+    pll4:st,pll@3 {
+        cfg = < 3 98 5 7 7 3>;
+        u-boot,dm-pre-reloc;
+    };
+};
+
+&i2c4{
+    u-boot,dm-pre-reloc;
+
+    /* USER CODE BEGIN i2c4 */
+    /* USER CODE END i2c4 */
+};
+
+&rcc{
+    u-boot,dm-pre-reloc;
+
+    /* USER CODE BEGIN rcc */
+    /* USER CODE END rcc */
+};
+
+&sdmmc1{
+    u-boot,dm-pre-reloc;
+
+    /* USER CODE BEGIN sdmmc1 */
+    /* USER CODE END sdmmc1 */
+};
+
+&uart4{
+    u-boot,dm-pre-reloc;
+
+    /* USER CODE BEGIN uart4 */
+    /* USER CODE END uart4 */
+};
+
+/* USER CODE BEGIN addons */
+/ {
+	aliases {
+		serial1 = &usart2;
+	};
+};
+
+&sdmmc2{
+   pinctrl-2 = <&sdmmc2_b4_od_pins_a>;
+};
+
+&usbotg_hs {
+	usb1600;
+	hnp-srp-disable;
+};
+
+&pmic {
+	u-boot,dm-pre-reloc;
+};
+
+&v3v3 {
+	regulator-always-on;
+};
+/* USER CODE END addons */
+
