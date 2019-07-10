@@ -6,7 +6,8 @@ OpenEmbedded meta layer to install logic analyser demo which includes a user int
 
 * Clone following git repositories into [your STM32MP1 Distribution path]/layers/meta-st/
    > cd [your STM32MP1 Distribution path]/layers/meta-st/ <br>
-   > git clone ssh://${USER}@gerrit.st.com:29418/stm32mpuapp/meta-st-stm32mpu-app-logicanalyser.git <br>
+   > git clone https://github.com/STMicroelectronics/meta-st-stm32mpu-app-logicanalyser.git <br>
+   
 
 * Setup the build environement
    > source [your STM32MP1 Distribution path]/layers/meta-st/scripts/envsetup.sh
