@@ -47,7 +47,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <error.h>
-#include <microhttpd.h>
+#include <gtk/gtk.h>
 
 #define DATA_BUF_POOL_SIZE 1024*1024 /* 1MB */
 #define MAX_BUF 80
@@ -79,7 +79,7 @@ struct connection_info_struct
   struct MHD_PostProcessor *postprocessor;
 };
 
-pthread_mutex_t ttyMutex;
+//pthread_mutex_t ttyMutex;
 
 struct MHD_Daemon *mHttpDaemon;
 
@@ -108,7 +108,7 @@ static char mByteBuffCpy[512];
 static pthread_t thread_tty;
 
 static char mSamplingStr[15];
-static int32_t mSampFreq_Hz;
+static int32_t mSampFreq_Hz = 4;
 static int32_t mSampFreqH=0, mSampFreqM=0, mSampFreqL=1;
 static char mSampFreqU='M';
 static int32_t mHtmlNbParmRec;
@@ -117,18 +117,39 @@ static int32_t mSampParmCount;
 static char mHtmlRefreshStr[100];
 static char mHtmlFHSelectStr[150], mHtmlFMSelectStr[150], mHtmlFLSelectStr[150], mHtmlFUSelectStr[150];
 static char mHtmlButtValueStr[150];
-static uint8_t mExitRequested = 0, mErrorDetected = 0;
+static uint8_t mExitRequested = 0, mErrorDetected = 0, mUIrefreshReq = 0;
 static uint32_t mNbCompData=0, mNbUncompData=0, mNbWrittenInFileData;
 static uint8_t mDdrBuffAwaited;
 static uint8_t mThreadCancel = 0;
+//static    char tmpStr[80];
 
 void* mmappedData[NB_BUF];
 static    int fMappedData = 0;
-
 FILE *pOutFile;
 static char mFileNameStr[150];
-static pthread_t thread;
+static pthread_t thread, thread2;
 
+static    GtkWidget *window;
+static    GtkWidget *f_scale;
+static    GtkAdjustment *fadjustment;
+static    GtkWidget *fullVBox;
+    
+static    GtkWidget *controlTitle_label;
+static    GtkWidget *fTitle_label;
+static    GtkWidget *fValue_label;
+static    GtkWidget *measurTitle_label;
+static    GtkWidget *state_label;
+static    GtkWidget *state_value;
+static    GtkWidget *nbCompData_label;
+static    GtkWidget *nbCompData_value;
+static    GtkWidget *nbRealData_label;
+static    GtkWidget *nbRealData_value;
+static    GtkWidget *nbWrittenData_label;
+static    GtkWidget *nbWrittenData_value;
+static    GtkWidget *fileName_label;
+static    GtkWidget *fileName_value;
+static    GtkWidget *butSingle;
+    
 /********************************************************************************
 Copro functions allowing to manage a virtual TTY over RPMSG
 *********************************************************************************/
@@ -319,7 +340,7 @@ print_time() {
 int acount = 0;
 
 /********************************************************************************
-Remote UI functions called thanks microhttpd library (Web server)
+GTK UI functions
 *********************************************************************************/
 static ssize_t
 file_reader (void *cls, uint64_t pos, char *buf, size_t max)
@@ -369,334 +390,199 @@ close_raw_file(void) {
     fclose(pOutFile);
 }
 
-char html_answer_buff[10000];
-
-static int
-iterate_post (void *coninfo_cls, enum MHD_ValueKind kind, const char *key,
-              const char *filename, const char *content_type,
-              const char *transfer_encoding, const char *data, uint64_t off,
-              size_t size)
+static gboolean refreshUI_CB (gpointer data)
 {
-  struct connection_info_struct *con_info = coninfo_cls;
-  int ret = MHD_YES;
+    char tmpStr[100];
+   
+    gtk_label_set_text (GTK_LABEL (state_value), machine_state_str[mMachineState]);
+    sprintf(tmpStr, "%u", mNbCompData);
+    gtk_label_set_text (GTK_LABEL (nbCompData_value), tmpStr);
+    sprintf(tmpStr, "%u", mNbUncompData);
+    gtk_label_set_text (GTK_LABEL (nbRealData_value), tmpStr);
+    sprintf(tmpStr, "%u", mNbWrittenInFileData);
+    gtk_label_set_text (GTK_LABEL (nbWrittenData_value), tmpStr);
+    gtk_label_set_text (GTK_LABEL (fileName_value), mFileNameStr);
+    
+    gtk_widget_show_all(window);
 
-  pthread_mutex_lock(&ttyMutex);
-  if (0 == strcmp (key, "onoff")) {
-    if (0 == strcmp (data, "Start")) {
-        // check machine state and Samp. params
-        if ((mMachineState == STATE_READY) && (mSampFreq_Hz > 0)) {
-            if (mSampParmCount == 4) {
-                mSampParmCount = 0;        // ready for next command
-                mMachineState = STATE_SAMPLING;        // needed to force Html refresh => TODO clean this
-                mNbCompData=0;
-                mNbUncompData=0;
-                mNbWrittenInFileData=0;
-                mDdrBuffAwaited=0;
-                virtual_tty_send_command(strlen(mSamplingStr), mSamplingStr);
-                printf("Start sampling at %dHz\n", mSampFreq_Hz);
-                open_raw_file();
-            } else {
-                printf("Start sampling param error due to mSampParmCount=%d\n", mSampParmCount);
-            }
-        } else {
-            printf("Start sampling param error: mMachineState=%d mSampFreq_Hz=%d \n",
-                mMachineState, mSampFreq_Hz);
-        }
-    }
-    if (0 == strcmp (data, "Stop")) {
-        // check machine state and Samp. params
-        if (mMachineState == STATE_SAMPLING) {
-            virtual_tty_send_command(strlen("Exit"), "Exit");
-            printf("Stop sampling\n");
-            mMachineState = STATE_READY;
-            close_raw_file();
-        } else {
-            printf("Stop sampling state error: mMachineState=%d \n",
-                mMachineState);
-        }
-    }
-  }
-
-  if (0 == strcmp (key, "sampfreqh")) {
-    if (strlen(data) == 1) {
-        if ((*data >= '0') && (*data <= '9')) {
-            mSampFreqH = *data - '0';
-            mSampFreq_Hz = (*data - '0') * 100;
-            mSamplingStr[0] = 'S';
-            mSamplingStr[1] = *data;
-            mSampParmCount = 1;
-        } else {
-            mSampParmCount = 0;
-        }
-    } else {
-        mSampParmCount = 0;
-    }
-  }
-
-  if (0 == strcmp (key, "sampfreqm")) {
-    if (strlen(data) == 1) {
-        if ((*data >= '0') && (*data <= '9')) {
-            mSampFreqM = *data - '0';
-            mSampFreq_Hz += (*data - '0') * 10;
-            mSamplingStr[2] = *data;
-            if (mSampParmCount == 1) {
-                mSampParmCount++;
-            } else {
-                mSampParmCount = 0;
-            }
-        } else {
-            mSampParmCount = 0;
-        }
-    } else {
-        mSampParmCount = 0;
-    }
-  }
-
-  if (0 == strcmp (key, "sampfreql")) {
-    if (strlen(data) == 1) {
-        if ((*data >= '0') && (*data <= '9')) {
-            mSampFreqL = *data - '0';
-            mSampFreq_Hz += (*data - '0');
-            mSamplingStr[3] = *data;
-            if (mSampParmCount == 2) {
-                mSampParmCount++;
-            } else {
-                mSampParmCount = 0;
-            }
-        } else {
-            mSampParmCount = 0;
-        }
-    } else {
-        mSampParmCount = 0;
-    }
-  }
-
-  if (0 == strcmp (key, "sampfrequ")) {
-    if (0 == strcmp (data, "MHz")) {
-        mSampFreqU = *data;
-        mSampFreq_Hz *= 1000000;
-
-        mSamplingStr[4] = *data;
-        if (mSampParmCount == 3) {
-            mSampParmCount++;
-        } else {
-            mSampParmCount = 0;
-        }
-    } else if (0 == strcmp (data, "kHz")) {
-        mSampFreqU = *data;
-        mSampFreq_Hz *= 1000;
-        mSamplingStr[4] = *data;
-        if (mSampParmCount == 3) {
-            mSampParmCount++;
-        } else {
-            mSampParmCount = 0;
-        }
-    } else {
-        mSampParmCount = 0;
-    }
-  }
-
-  pthread_mutex_unlock(&ttyMutex);
-
-  return ret;
+   return FALSE;
 }
 
-static void
-request_completed (void *cls, struct MHD_Connection *connection,
-                   void **con_cls, enum MHD_RequestTerminationCode toe)
+static void single_clicked (GtkWidget *widget, gpointer data)
 {
-  struct connection_info_struct *con_info = *con_cls;
-
-  if (NULL == con_info)
-    return;
-
-  if (con_info->connectiontype == POST)
-    {
-      MHD_destroy_post_processor (con_info->postprocessor);
-      if (con_info->answerstring)
-        free (con_info->answerstring);
-    }
-
-  free (con_info);
-  *con_cls = NULL;
-}
-
-static int HtmlLaPage(struct MHD_Connection *connection) {
-  pthread_mutex_lock(&ttyMutex);
-  int n = 0, i;
-  char * psel;
-  if (mMachineState == STATE_READY) {
-      sprintf(mHtmlRefreshStr, "");
-      sprintf(mHtmlButtValueStr, "Start");
-  } else {
-      sprintf(mHtmlRefreshStr, "<meta http-equiv=\"refresh\" content=\"1\">");
-      sprintf(mHtmlButtValueStr, "Stop");
-  }
-  // setup parameter current value, ex: <OPTION selected>0<OPTION>1<OPTION>2<OPTION>3<OPTION>4<OPTION>5<OPTION>6<OPTION>7<OPTION>8<OPTION>9
-  n = 0;
-  for (i=0; i<10; i++) {
-      if (mSampFreqH == i) {
-          psel = SELECTED;
-      } else {
-          psel = NOT_SELECTED;
-      }
-      n += sprintf(mHtmlFHSelectStr+n, "<OPTION%s>%d", psel, i);
-  }
-  n = 0;
-  for (i=0; i<10; i++) {
-      if (mSampFreqM == i) {
-          psel = SELECTED;
-      } else {
-          psel = NOT_SELECTED;
-      }
-      n += sprintf(mHtmlFMSelectStr+n, "<OPTION%s>%d", psel, i);
-  }
-  n = 0;
-  for (i=0; i<10; i++) {
-      if (mSampFreqL == i) {
-          psel = SELECTED;
-      } else {
-          psel = NOT_SELECTED;
-      }
-      n += sprintf(mHtmlFLSelectStr+n, "<OPTION%s>%d", psel, i);
-  }
-
-  n = 0;
-  for (i=0; i<4; i++) {
-      if (mSampFreqU == FREQU[i]) {
-          psel = SELECTED;
-      } else {
-          psel = NOT_SELECTED;
-      }
-      n += sprintf(mHtmlFUSelectStr+n, "<OPTION%s>%s", psel, freq_unit_str[i]);
-  }
-
-  memset(html_answer_buff, 0, sizeof html_answer_buff);
-  sprintf(html_answer_buff,
-    "<!DOCTYPE html>"
-    "<html>"
-    " <head>"
-    "  <meta charset=\"utf-8\" />"
-    "  %s"
-    "  <style type='text/css'>"
-    "   section { margin-bottom: 15px; margin-top: 15px; font-size: 20px; }"
-    "   table { margin-left:10px; border: 1px solid black; border-collapse: collapse; }"
-    "   caption { border: 1px solid black; font-size: 24px; font-weight: bold; background-color: #87ceeb; }"
-    "   td { border: none; font-size: 20px; }"
-    "   input { padding:3px; font-size: 20px; }"
-    "   img { margin-left:350px; }"
-    "   .imgmargin { width: 40%; border: 1px solid black; }"
-    "   .imgcenter { width: 100%; }"
-    "   .head { width: 33%; color: black;} "
-    "   .onoff {text-align: center; color: white; background-color: #1020f4;}"
-    "   .val { color: blue; text-align: left;}"
-    "   .capt {margin-top: 15px; margin-bottom: 15px; font-size: 44px; font-weight: italic; text-align: right; background-color: #cccccc; }"
-    "  </style>"
-    " </head>"
-    " <body bgcolor='#FFFFFF'>"
-    "  <header>"
-    "   <table width='50%'><caption class='capt'>STHowToM4ToA7BigDataExchange<img src=\"ST_icon2.jpg\" /></caption></table>"
-    "  </header>"
-    "  <section ><form method='post' name='analysform'>"
-    "   <table width='50%'><caption>Control</caption><tbody>"
-    "    <tr><td class='head'> Sampling frequency : </td>"
-    "     <td><SELECT name='sampfreqh' size='1' >%s</SELECT</td>"
-    "     <td><SELECT name='sampfreqm' size='1' >%s</SELECT</td>"
-    "     <td><SELECT name='sampfreql' size='1' >%s</SELECT</td>"
-    "     <td><SELECT name='sampfrequ' size='1' >%s</SELECT</td></tr>"
-    "   </tbody></table>"
-    "   <table width='50%'><tbody>"
-    "    <tr ><td class='head' align='center'> </td>"
-    "     <td class='head'><input style=\"width:100%\" type='submit' name='onoff' class='onoff' value='%s' /></td>"
-    "     <td class='head' align='center'> </td></tr></tbody></table>   "
-    "  </form></section>"
-    "   <table width='50%'><caption>Measurements</caption><tbody>"
-    "    <tr ><td>Machine state:</td><td class='val'> %s</td><td></td><td class='val'></td></tr>"
-    "    <tr ><td>Nb of compressed data</td><td class='val'> %u</td><td></td><td class='val'></td></tr>"
-    "    <tr ><td>Nb of uncompressed data</td><td class='val'> %u</td><td></td><td class='val'></td></tr>"
-    "    <tr ><td>Nb of written in file data</td><td class='val'> %u</td><td></td><td class='val'></td></tr>"
-    "    <tr ><td>File name</td><td class='val'> %s</td><td></td><td class='val'></td></tr>"
-    "   </tbody></table>"
-    " </body>"
-    "</html>",
-    mHtmlRefreshStr,
-    mHtmlFHSelectStr, mHtmlFMSelectStr, mHtmlFLSelectStr, mHtmlFUSelectStr, mHtmlButtValueStr,
-    machine_state_str[mMachineState], mNbCompData, mNbUncompData, mNbWrittenInFileData, mFileNameStr
-  );
-  pthread_mutex_unlock(&ttyMutex);
-
-  struct MHD_Response *response;
-  int ret;
-
-  response =
-    MHD_create_response_from_buffer (strlen (html_answer_buff), (void *) html_answer_buff,
-                     MHD_RESPMEM_PERSISTENT);
-  ret = MHD_queue_response (connection, MHD_HTTP_OK, response);
-  MHD_destroy_response (response);
-  return ret;
-}
-
-static int
-answer_to_connection (void *cls, struct MHD_Connection *connection,
-                      const char *url, const char *method,
-                      const char *version, const char *upload_data,
-                      size_t *upload_data_size, void **con_cls)
-{
-  struct MHD_Response *response;
-  int ret;
-  FILE *file;
-  struct stat buf;
-  if (NULL == *con_cls) {
-    struct connection_info_struct *con_info;
-    con_info = malloc (sizeof (struct connection_info_struct));
-    if (NULL == con_info) {
-        return MHD_NO;
-    }
-    con_info->answerstring = NULL;
-    if (0 == strcmp (method, "POST")) {
-        con_info->postprocessor = MHD_create_post_processor (connection, POSTBUFFERSIZE,
-            iterate_post, (void *) con_info);
-        if (NULL == con_info->postprocessor) {
-              free (con_info);
-              return MHD_NO;
-        }
-        con_info->connectiontype = POST;
+    if (mMachineState == STATE_READY) {
+        mMachineState = STATE_SAMPLING;        // needed to force Html refresh => TODO clean this
+        mNbCompData=0;
+        mNbUncompData=0;
+        mNbWrittenInFileData=0;
+        mDdrBuffAwaited=0;
+        // build sampling string
+        sprintf(mSamplingStr, "S%03dM", mSampFreq_Hz);
+        //sprintf(mSamplingStr, "S004M", mSampFreq_Hz);
+        virtual_tty_send_command(strlen(mSamplingStr), mSamplingStr);
+        printf("Start sampling at %dMHz\n", mSampFreq_Hz);
+        open_raw_file();
+    } else if (mMachineState == STATE_SAMPLING) {
+        virtual_tty_send_command(strlen("Exit"), "Exit");
+        printf("Stop sampling\n");
+        mMachineState = STATE_READY;
+        close_raw_file();
+        gdk_threads_add_idle (refreshUI_CB, window);
     } else {
-        con_info->connectiontype = GET;
+        printf("Start sampling param error: mMachineState=%d mSampFreq_Hz=%d \n",
+            mMachineState, mSampFreq_Hz);
     }
-    *con_cls = (void *) con_info;
-    return MHD_YES;
-  }
-  if (0 == strcmp (method, "POST")) {
-    struct connection_info_struct *con_info = *con_cls;
-    if (*upload_data_size != 0) {
-        MHD_post_process (con_info->postprocessor, upload_data,
-                *upload_data_size);
-        *upload_data_size = 0;
-        return MHD_YES;
-    }
-  }
-  if (0 == strcmp (method, "GET")) {
-    if ( (0 == stat (&url[1], &buf)) && (S_ISREG (buf.st_mode)) ) {
-        file = fopen (&url[1], "rb");
-        if (file != NULL) {
-            response = MHD_create_response_from_callback (buf.st_size, 32 * 1024,     /* 32k PAGE_NOT_FOUND size */
-                    &file_reader, file, &file_free_callback);
-            if (response == NULL) {
-                fclose (file);
-                return MHD_NO;
-            }
-            ret = MHD_queue_response (connection, MHD_HTTP_OK, response);
-            MHD_destroy_response (response);
-            return ret;
-        }
-    }
-  }
-  ret = HtmlLaPage(connection);
-  return ret;
 }
+
+static void f_scale_moved (GtkRange *range, gpointer user_data)
+{
+   GtkWidget *label = user_data;
+
+   gdouble pos = gtk_range_get_value (range);
+   gdouble val = 1 + 19 * pos / 100;
+   gchar *str = g_strdup_printf ("%.0f", val);
+   mSampFreq_Hz = atoi(str);
+   gtk_label_set_text (GTK_LABEL (label), str);
+   printf("fscale = %d\n", mSampFreq_Hz);
+
+   g_free(str);
+}
+
+void *ui_thread(void *arg)
+{
+    
+    GdkColor color;
+    GtkWidget *mainGrid;
+    char tmpStr[100];
+    
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    sprintf(mFileNameStr, "/usr/local/demo/la/%04d%02d%02d-%02d%02d%02d.dat",
+        tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+        
+    window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_title (GTK_WINDOW (window), "STHowToM4ToA7LargeDataExchange");
+    g_signal_connect (window, "destroy",
+                  G_CALLBACK (gtk_main_quit), NULL);
+    gtk_container_set_border_width (GTK_CONTAINER (window), 10);
+    gtk_window_fullscreen(GTK_WINDOW (window));
+    
+    GtkCssProvider *provider = gtk_css_provider_new ();
+    gtk_css_provider_load_from_path (provider, "/usr/local/demo/la/bin/la.css", NULL);
+    
+    GdkDisplay* Display = gdk_display_get_default();
+    GdkScreen* Screen = gdk_display_get_default_screen(Display);
+    gtk_style_context_add_provider_for_screen(Screen, GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
+
+    controlTitle_label = gtk_label_new ("Control");
+    gtk_widget_set_name (controlTitle_label, "control_title");
+    
+    fTitle_label = gtk_label_new ("Sampling freq. (MHz) :");
+    gtk_label_set_xalign (GTK_LABEL (fTitle_label), 0);
+    fValue_label = gtk_label_new ("4");
+    gtk_label_set_xalign (GTK_LABEL (fValue_label), 0);
+    
+    fadjustment = gtk_adjustment_new (16, 0, 100, 5, 10, 0);
+    f_scale = gtk_scale_new (GTK_ORIENTATION_HORIZONTAL, fadjustment);
+    gtk_scale_set_draw_value (GTK_SCALE (f_scale), FALSE);
+  
+    g_signal_connect (f_scale, 
+                    "value-changed", 
+                    G_CALLBACK (f_scale_moved), 
+                    fValue_label);
+    
+    measurTitle_label = gtk_label_new ("Measurements");
+    gtk_widget_set_name (measurTitle_label, "measur_title");
+
+    state_label = gtk_label_new ("Machine state :");
+    gtk_label_set_xalign (GTK_LABEL (state_label), 0);
+    state_value = gtk_label_new ("");
+    gtk_label_set_xalign (GTK_LABEL (state_value), 0);
+    
+    nbCompData_label = gtk_label_new ("Nb of compressed data :");
+    gtk_label_set_xalign (GTK_LABEL (nbCompData_label), 0);
+    nbCompData_value = gtk_label_new ("");
+    gtk_label_set_xalign (GTK_LABEL (nbCompData_value), 0);
+    nbRealData_label = gtk_label_new ("Nb of uncompressed data :");
+    gtk_label_set_xalign (GTK_LABEL (nbRealData_label), 0);
+    nbRealData_value = gtk_label_new ("");
+    gtk_label_set_xalign (GTK_LABEL (nbRealData_value), 0);
+    nbWrittenData_label = gtk_label_new ("Nb of written in file data :");
+    gtk_label_set_xalign (GTK_LABEL (nbWrittenData_label), 0);
+    nbWrittenData_value = gtk_label_new ("");
+    gtk_label_set_xalign (GTK_LABEL (nbWrittenData_value), 0);
+    fileName_label = gtk_label_new ("File name :");
+    gtk_label_set_xalign (GTK_LABEL (fileName_label), 0);
+    fileName_value = gtk_label_new ("");
+    gtk_label_set_xalign (GTK_LABEL (fileName_value), 0);
+    
+    gtk_label_set_text (GTK_LABEL (state_value), machine_state_str[mMachineState]);
+    sprintf(tmpStr, "%u", mNbCompData);
+    gtk_label_set_text (GTK_LABEL (nbCompData_value), tmpStr);
+    sprintf(tmpStr, "%u", mNbUncompData);
+    gtk_label_set_text (GTK_LABEL (nbRealData_value), tmpStr);
+    sprintf(tmpStr, "%u", mNbWrittenInFileData);
+    gtk_label_set_text (GTK_LABEL (nbWrittenData_value), tmpStr);
+    gtk_label_set_text (GTK_LABEL (fileName_value), mFileNameStr);
+    
+    butSingle = gtk_button_new_with_label("Start");
+    g_signal_connect(butSingle, 
+                    "clicked", 
+                    G_CALLBACK (single_clicked), 
+                    NULL);
+                    
+    mainGrid = gtk_grid_new ();
+    // Control title in (1,0) is 3 columns large & 1 row high
+    gtk_grid_attach (GTK_GRID (mainGrid), controlTitle_label, 1, 0, 3, 1);
+    // Freq. title in (0,1) is 1 column large & 1 row high
+    gtk_grid_attach (GTK_GRID (mainGrid), fTitle_label, 0, 1, 1, 1);
+    // Freq. value in (1,1) is 1 column large & 1 row high
+    gtk_grid_attach (GTK_GRID (mainGrid), fValue_label, 1, 1, 1, 1);
+    // Freq. scale in (2,1) is 3 column large & 1 row high
+    gtk_grid_attach (GTK_GRID (mainGrid), f_scale, 2, 1, 3, 1);
+    
+    // Start button in (1,2) is 3 column large & 2 row high
+    gtk_grid_attach (GTK_GRID (mainGrid), butSingle, 1, 2, 3, 2);
+    
+    // Measurement title in (1,4) is 3 columns large & 1 row high
+    gtk_grid_attach (GTK_GRID (mainGrid), measurTitle_label, 1, 4, 3, 1);
+    // State label in (0,5) is 2 column large & 1 row high
+    gtk_grid_attach (GTK_GRID (mainGrid), state_label, 0, 5, 2, 1);
+    // State value in (2,5) is 2 column large & 1 row high
+    gtk_grid_attach (GTK_GRID (mainGrid), state_value, 2, 5, 2, 1);
+    
+    // Comp data label in (0,6) is 2 column large & 1 row high
+    gtk_grid_attach (GTK_GRID (mainGrid), nbCompData_label, 0, 6, 2, 1);
+    // Comp data value in (2,6) is 2 column large & 1 row high
+    gtk_grid_attach (GTK_GRID (mainGrid), nbCompData_value, 2, 6, 2, 1);
+    
+    // Real data label in (0,7) is 2 column large & 1 row high
+    gtk_grid_attach (GTK_GRID (mainGrid), nbRealData_label, 0, 7, 2, 1);
+    // Real data value in (2,7) is 2 column large & 1 row high
+    gtk_grid_attach (GTK_GRID (mainGrid), nbRealData_value, 2, 7, 2, 1);
+    
+    // Written data label in (0,8) is 2 column large & 1 row high
+    gtk_grid_attach (GTK_GRID (mainGrid), nbWrittenData_label, 0, 8, 2, 1);
+    // Written data value in (2,8) is 2 column large & 1 row high
+    gtk_grid_attach (GTK_GRID (mainGrid), nbWrittenData_value, 2, 8, 2, 1);
+    
+    // File name label in (0,9) is 2 column large & 1 row high
+    gtk_grid_attach (GTK_GRID (mainGrid), fileName_label, 0, 9, 2, 1);
+    // File name value in (2,9) is 2 column large & 1 row high
+    gtk_grid_attach (GTK_GRID (mainGrid), fileName_value, 2, 9, 2, 1);
+    
+    gtk_grid_set_row_homogeneous (GTK_GRID (mainGrid), TRUE);
+    
+    gtk_container_add (GTK_CONTAINER (window), mainGrid);
+
+    gtk_widget_show_all(window);
+    
+
+    gtk_main ();
+}
+   
 /*************************************************************************************
-End of Remote UI functions
+End of GTK UI functions
 *************************************************************************************/
 
 static void sleep_ms(int milliseconds)
@@ -725,6 +611,7 @@ void incatchr(int signum){
 
 void exit_fct(int signum)
 {
+    gtk_main_quit();
     mThreadCancel = 1;
     sleep_ms(100);
     if (fMappedData) {
@@ -753,6 +640,7 @@ void *vitural_tty_thread(void *arg)
     uint32_t length;
     int32_t wsize;
     int buffIdx = 3;
+    char tmpStr[100];
 
     while (1) {
         if (mThreadCancel) break;    // kill thread requested
@@ -768,7 +656,6 @@ void *vitural_tty_thread(void *arg)
             for (int m=0; m<read; m+=19) {
                 strncpy(mByteBuffCpy, &mByteBuffer[m], 19);
                 mByteBuffCpy[19] = 0;    // insure end of string
-                //printf("[%ld.%06ld] vitural_tty_thread treat: %s\n", (long int)tval_result.tv_sec, (long int)tval_result.tv_usec, mByteBuffCpy);
                 mesgOK = 1;
                 length = 0;
                 // Treat M4FW event, format: "DMA2DDR-BnLxxxxxxxx"
@@ -789,13 +676,11 @@ void *vitural_tty_thread(void *arg)
                                     }
                                 }
                                 if (mesgOK == 1) {
-                                    pthread_mutex_lock(&ttyMutex);
                                     mDdrBuffAwaited++;
                                     if (mDdrBuffAwaited > 2) {
                                         mDdrBuffAwaited = 0;
                                     }
                                     mNbCompData += length;
-                                    //mNbUncompData += (uint64_t)(length*8);
 
                                     unsigned char* pCompData = (unsigned char*)mmappedData[buffIdx];
                                     for (int i=0; i<length; i++) {
@@ -805,12 +690,14 @@ void *vitural_tty_thread(void *arg)
                                     wsize= write_raw_file(mmappedData[buffIdx], length);
                                     if (wsize == (int32_t)length) {
                                         mNbWrittenInFileData += wsize;
-                                        printf("[%ld.%06ld] vitural_tty_thread data EVENT buffIdx=%d mNbCompData=%u mNbUncompData=%u mNbWrittenInFileData=%u\n",
+                                        printf("[%ld.%06ld] vitural_tty_thread data EVENT buffIdx=%d mNbCompData=%u mNbUncompData=%u mNbWrittenInFileData=%u\n", 
                                             (long int)tval_result.tv_sec, (long int)tval_result.tv_usec, buffIdx, mNbCompData, mNbUncompData, mNbWrittenInFileData);
+                                        
+                                        gdk_threads_add_idle (refreshUI_CB, window);
+
                                     } else {
                                         mErrorDetected = 2;
                                     }
-                                    pthread_mutex_unlock(&ttyMutex);
                                 }
                             } else {
                                 mesgOK = -2;
@@ -828,7 +715,7 @@ void *vitural_tty_thread(void *arg)
             }
             if (mesgOK < 0) {
                 mErrorDetected = 1;
-                printf("[%ld.%06ld] vitural_tty_thread DATA EVENT ERROR mesgOK=%d\n",
+                printf("[%ld.%06ld] vitural_tty_thread DATA EVENT ERROR mesgOK=%d\n", 
                     (long int)tval_result.tv_sec, (long int)tval_result.tv_usec, mesgOK);
             }
         }
@@ -847,6 +734,7 @@ int main(int argc, char **argv)
     unsigned int length;
     char FwName[30];
     //strcpy(FIRM_NAME, "rprochdrlawc01100.elf");
+    //strcpy(FIRM_NAME, "how2eldb_CM4.elf");
     strcpy(FIRM_NAME, "how2eldb02110.elf");
     /* check if copro is already running */
     ret = copro_isFwRunning();
@@ -927,21 +815,24 @@ fwrunning:
                                 MAP_PRIVATE,
                                 fd,
                                 0);
-        printf("\nDBG errno:%d - mmappedData[%d]:%p\n",errno,i,mmappedData[i]);
+        printf("\nDBG mmappedData[%d]:%p\n", i, mmappedData[i]);
         assert(mmappedData[i] != MAP_FAILED);
         fMappedData = 1;
     }
-    pthread_mutex_init(&ttyMutex, NULL);
-    mHttpDaemon = MHD_start_daemon (MHD_USE_SELECT_INTERNALLY, PORT, NULL, NULL,
-                            &answer_to_connection, NULL,
-                            MHD_OPTION_NOTIFY_COMPLETED, request_completed,
-                            NULL, MHD_OPTION_END);
-    if (NULL == mHttpDaemon) {
-        printf("MHD_start_daemon fails!!!\n");
-    }
+
     mMachineState = STATE_READY;
-    mSampFreq_Hz = 0;
+    mSampFreq_Hz = 4;
     mSampParmCount = 0;
+    
+    gtk_init (&argc, &argv);
+    
+    if (pthread_create( &thread2, NULL, ui_thread, NULL) != 0) {
+        printf("ui_thread creation fails\n");
+        goto end;
+    }
+    
+    printf("Entering in Main loop\n");
+
     while (1) {
         if (mExitRequested) break;
         if (mErrorDetected) {

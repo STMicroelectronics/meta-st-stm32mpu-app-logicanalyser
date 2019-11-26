@@ -4,13 +4,22 @@
 # explanation
 
 # Linux users add this
-CFLAGS+= -DGRE_TARGET_OS_linux
+LDFLAGS_ORI = $(LDFLAGS)
+
+CFLAGS += -Wall $(shell pkg-config --cflags gtk+-3.0)
 LDFLAGS += -lpthread -lmicrohttpd -lm -lc
 
-all: backend keyboard
+LDFLAGS2 = $(LDFLAGS_ORI) $(shell pkg-config --libs gtk+-3.0)
+LDFLAGS2 += -lpthread -lm -lc
+
+
+all: backend backend_gtk keyboard
 
 backend: backend.c
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) -o $@ $^ $(LDFLAGS)
+
+backend_gtk: backend.c
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS2)
 
 keyboard: keyboard.c
 	$(CC) -o $@ $^ $(LDFLAGS)

@@ -1104,8 +1104,7 @@
 	st,hw-flow-ctrl;
 
 	bluetooth {
-		pinctrl-names = "default";
-		pinctrl-0 = <&btreg>;
+		shutdown-gpios = <&gpioz 6 GPIO_ACTIVE_HIGH>;
 		compatible = "brcm,bcm43438-bt";
 		max-speed = <3000000>;
 	};

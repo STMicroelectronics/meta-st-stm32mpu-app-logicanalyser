@@ -1,0 +1,51 @@
+GtkButton:hover {
+     color: yellowgreen;
+    background-color: green;
+    opacity: 0.95;
+    text-decoration: underline;
+    background-image:  -gtk-gradient (linear,
+             left top,
+             left bottom,
+             color-stop(0.0,rgba(34,97,70,1)),
+             color-stop(0.30,rgba(56,145,118,0.9)),
+             color-stop(0.81,rgba(34,131,116,0.9)),
+             color-stop(1.00,rgba(104,191,134,1)));
+  
+             
+}
+
+GtkButton:active{
+     color: yellowgreen;
+    background-color: green;
+    opacity: 0.97;
+    text-decoration: underline;
+    background-image:  -gtk-gradient (linear,
+             left top,
+             left bottom,
+             color-stop(0.000,rgba(104,191,134,1)),
+             color-stop(0.11,rgba(34,131,116,1)),
+             color-stop(0.32,rgba(34,97,70,1)),
+             color-stop(0.70,rgba(56,145,118,1)),
+             color-stop(0.91,rgba(34,131,116,1)),
+             color-stop(1.00,rgba(104,191,134,1)));
+  
+             
+}
+
+
+
+GtkButton {
+     color: yellowgreen;
+    background-color: green;
+    opacity: 0.797;
+    text-decoration: underline;
+    background-image:  -gtk-gradient (linear,
+             left top,
+             left bottom,
+             color-stop(0.0,rgba(34,97,70,1)),
+             color-stop(0.50,rgba(56,145,118,1)),
+             color-stop(0.51,rgba(34,131,116,1)),
+             color-stop(1.00,rgba(104,191,134,1)));
+  
+             
+}

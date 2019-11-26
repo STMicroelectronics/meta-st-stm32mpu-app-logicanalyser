@@ -6,6 +6,8 @@ LIC_FILES_CHKSUM = "file://${COREBASE}/meta/files/common-licenses/MIT;md5=0835ad
 DEPENDS = "libmicrohttpd"
 
 SRC_URI = " file://backend.c;subdir=backend \
+            file://backend_gtk.c;subdir=backend \
+            file://la.css;subdir=backend \
             file://keyboard.c;subdir=backend \
             file://Makefile;subdir=backend \
             file://run_la.sh;subdir=backend \
@@ -25,12 +27,15 @@ do_install() {
     install -d 										${D}${STM32MP_USERFS_MOUNTPOINT_IMAGE}/demo/la/
     install -d 										${D}${STM32MP_USERFS_MOUNTPOINT_IMAGE}/demo/la/bin/
     install -m 0755 ${B}/backend/backend 		    ${D}${STM32MP_USERFS_MOUNTPOINT_IMAGE}/demo/la/bin/
+    install -m 0755 ${B}/backend/backend_gtk 		${D}${STM32MP_USERFS_MOUNTPOINT_IMAGE}/demo/la/bin/
+    install -m 0755 ${B}/backend/la.css     		${D}${STM32MP_USERFS_MOUNTPOINT_IMAGE}/demo/la/bin/
     install -m 0755 ${B}/backend/keyboard 			${D}${STM32MP_USERFS_MOUNTPOINT_IMAGE}/demo/la/bin/
     install -m 0755 ${S}/backend/run_la.sh          ${D}${STM32MP_USERFS_MOUNTPOINT_IMAGE}/demo/la/
     install -m 0644 ${B}/backend/www/*              ${D}${STM32MP_USERFS_MOUNTPOINT_IMAGE}/demo/la/bin/
 
     install -d ${D}/lib/firmware/
-    install -m 0644 ${STM32MP_LOGICANALYSER_BASE}/mx/STM32MP157C-DK2/demo-logic-analyser/firmware/rprochdrlawc01100.elf ${D}/lib/firmware/
+    #install -m 0644 ${STM32MP_LOGICANALYSER_BASE}/mx/STM32MP157C-DK2/demo-logic-analyser/firmware/rprochdrlawc01100.elf ${D}/lib/firmware/
+    install -m 0644 ${STM32MP_LOGICANALYSER_BASE}/mx/STM32MP157C-DK2/demo-logic-analyser/firmware/how2eldb02110.elf ${D}/lib/firmware/
 
     # start at startup
     install -d ${D}${STM32MP_USERFS_MOUNTPOINT_IMAGE}/weston-start-at-startup/
