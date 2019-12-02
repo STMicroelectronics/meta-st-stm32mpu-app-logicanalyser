@@ -11,7 +11,7 @@ gui_start() {
     rot=0
 
     insmod /lib/modules/$(uname -r)/kernel/drivers/misc/stm32_rpmsg_sdb.ko
-    ${BACK_END} rprochdrlawc01100.elf &
+    ${BACK_END} &
 }
 
 gui_stop() {
@@ -22,11 +22,9 @@ gui_stop() {
 
 pidof backend >/dev/null
 if [[ $? -ne 0 ]] ; then
-    /usr/local/demo/bin/st-hotspot-wifi-service.sh start
     gui_start
 else
     gui_stop
-    /usr/local/demo/bin/st-hotspot-wifi-service.sh stop
 fi
 
 exit 0

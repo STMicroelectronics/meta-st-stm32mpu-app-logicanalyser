@@ -4,22 +4,15 @@
 # explanation
 
 # Linux users add this
-LDFLAGS_ORI = $(LDFLAGS)
+CFLAGS2 = -Wall $(shell pkg-config --cflags gtk+-3.0)
+LDFLAGS2 = $(shell pkg-config --libs gtk+-3.0) -lpthread -lm -lc
 
-CFLAGS += -Wall $(shell pkg-config --cflags gtk+-3.0)
-LDFLAGS += -lpthread -lmicrohttpd -lm -lc
+LDFLAGS3 = -lpthread
 
-LDFLAGS2 = $(LDFLAGS_ORI) $(shell pkg-config --libs gtk+-3.0)
-LDFLAGS2 += -lpthread -lm -lc
-
-
-all: backend backend_gtk keyboard
+all: backend keyboard
 
 backend: backend.c
-	$(CC) -o $@ $^ $(LDFLAGS)
-
-backend_gtk: backend.c
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS2)
+	$(CC) $(CFLAGS) $(CFLAGS2) -o $@ $^ $(LDFLAGS) $(LDFLAGS2)
 
 keyboard: keyboard.c
-	$(CC) -o $@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(LDFLAGS3)

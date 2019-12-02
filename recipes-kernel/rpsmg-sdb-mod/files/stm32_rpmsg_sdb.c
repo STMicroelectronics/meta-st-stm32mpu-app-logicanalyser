@@ -74,8 +74,12 @@ static long rpmsg_sdb_decode_rxbuf_string(char *rxbuf_str, int *buffer_id, size_
 	long bufid;
 	const char delimiter[1] = {'L'};
 
+	//pr_err("%s: rxbuf_str:%s\n", __func__, rxbuf_str);
+
 	/* Get first part containing the buffer id */
 	sub_str = strsep(&rxbuf_str, delimiter);
+
+	//pr_err("%s: sub_str:%s\n", __func__, sub_str);
 
 	/* Save Buffer id and size: template BxLyyyyyyyy*/
 	ret = kstrtol(&sub_str[1], 10, &bufid);
@@ -376,7 +380,11 @@ static int rpmsg_sdb_drv_cb(struct rpmsg_device *rpdev, void *data, int len,
 		return -EINVAL;
 	}
 
-	memcpy(rpmsg_RxBuf, data, len+1);
+    //dev_err(rpmsg_sdb_dev, "(%s) lenght: %d\n", __func__,len);
+
+	memcpy(rpmsg_RxBuf, data, len);
+
+    rpmsg_RxBuf[len] = 0;
 
 	ret = rpmsg_sdb_decode_rxbuf_string(rpmsg_RxBuf, &buffer_id, &buffer_size);
 	if (ret < 0)

@@ -70,12 +70,6 @@
 			no-map;
 		};
 		
-		la_reserved: buffer@db000000 {
-			compatible = "shared-dma-pool";
-			reg = <0xdb000000 0x1000000>;
-			no-map;
-		};
-
         /* USER CODE END reserved-memory */
 
         gpu_reserved: gpu@dc000000 {
@@ -960,7 +954,6 @@
 };
 
 &m4_dma2 {
-    memory-region = <&la_reserved>;
 	status = "okay";
 };
 
