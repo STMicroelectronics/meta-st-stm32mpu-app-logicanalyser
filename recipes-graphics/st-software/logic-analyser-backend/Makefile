@@ -4,15 +4,15 @@
 # explanation
 
 # Linux users add this
-CFLAGS2 = -Wall $(shell pkg-config --cflags gtk+-3.0)
-LDFLAGS2 = $(shell pkg-config --libs gtk+-3.0) -lpthread -lm -lc
+#CFLAGS2 = -Wall $(shell pkg-config --cflags gtk+-3.0)
+LDFLAGS2 = -lpthread -lmicrohttpd -lm -lc
 
 LDFLAGS3 = -lpthread
 
 all: backend keyboard
 
 backend: backend.c
-	$(CC) $(CFLAGS) $(CFLAGS2) -o $@ $^ $(LDFLAGS) $(LDFLAGS2)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(LDFLAGS2)
 
 keyboard: keyboard.c
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(LDFLAGS3)
