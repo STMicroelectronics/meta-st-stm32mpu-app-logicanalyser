@@ -105,6 +105,9 @@ static char FREQU[3] = {'M', 'k', 'H'};
 /* The file descriptor used to manage our TTY over RPMSG */
 static int mFdRpmsg = -1;
 
+/* The file descriptor used to manage our SDB over RPMSG */
+static int mFdSdbRpmsg = -1;
+
 static int virtual_tty_send_command(int len, char* commandStr);
 
 static char mByteBuffer[512];
@@ -114,15 +117,9 @@ static pthread_t thread_tty;
 
 static char mSamplingStr[15];
 static int32_t mSampFreq_Hz = 4;
-static int32_t mSampFreqH=0, mSampFreqM=0, mSampFreqL=1;
-static char mSampFreqU='M';
-static int32_t mHtmlNbParmRec;
 static machine_state_t mMachineState;
 static int32_t mSampParmCount;
-static char mHtmlRefreshStr[100];
-static char mHtmlFHSelectStr[150], mHtmlFMSelectStr[150], mHtmlFLSelectStr[150], mHtmlFUSelectStr[150];
-static char mHtmlButtValueStr[150];
-static uint8_t mExitRequested = 0, mErrorDetected = 0, mUIrefreshReq = 0;
+static uint8_t mExitRequested = 0, mErrorDetected = 0;
 static uint32_t mNbCompData=0, mNbUncompData=0, mNbWrittenInFileData;
 static uint8_t mDdrBuffAwaited;
 static uint8_t mThreadCancel = 0;
@@ -136,12 +133,10 @@ static pthread_t thread, thread2;
 
 static int efd[NB_BUF];
 static struct pollfd fds[NB_BUF];
-static int fd;  // used to manage rpmesg_sdb driver
 
 static    GtkWidget *window;
 static    GtkWidget *f_scale;
 static    GtkAdjustment *fadjustment;
-static    GtkWidget *fullVBox;
     
 static    GtkWidget *controlTitle_label;
 static    GtkWidget *fTitle_label;
@@ -346,27 +341,9 @@ print_time() {
     printf("Time: %lld\n", (ts.tv_sec * 1000LL) + (ts.tv_nsec / 1000000LL));
 }
 
-int acount = 0;
-
 /********************************************************************************
 GTK UI functions
 *********************************************************************************/
-static ssize_t
-file_reader (void *cls, uint64_t pos, char *buf, size_t max)
-{
-  FILE *file = cls;
-
-  (void) fseek (file, pos, SEEK_SET);
-  return fread (buf, 1, max, file);
-}
-
-static void
-file_free_callback (void *cls)
-{
-  FILE *file = cls;
-  fclose (file);
-}
-
 static void
 open_raw_file(void) {
     time_t t = time(NULL);
@@ -460,7 +437,6 @@ static void f_scale_moved (GtkRange *range, gpointer user_data)
 void *ui_thread(void *arg)
 {
     
-    GdkColor color;
     GtkWidget *mainGrid;
     char tmpStr[100];
     
@@ -635,6 +611,8 @@ void exit_fct(int signum)
     if (copro_isFwRunning()) {
         mExitRequested = 1;
         //while (mExitRequested);
+		close(mFdSdbRpmsg);
+		mFdSdbRpmsg = -1;
         copro_closeTtyRpmsg();
         copro_stopFw();
         printf("stop the firmware before exit\n");
@@ -649,7 +627,6 @@ void *vitural_tty_thread(void *arg)
     uint32_t length;
     int32_t wsize;
     int buffIdx = 3;
-    char tmpStr[100];
 
     while (1) {
         if (mThreadCancel) break;    // kill thread requested
@@ -660,74 +637,6 @@ void *vitural_tty_thread(void *arg)
             timersub(&tval_after, &tval_before, &tval_result);
             printf("[%ld.%06ld] virtTTY_RX %d bytes: %s\n", (long int)tval_result.tv_sec, (long int)tval_result.tv_usec, read, mByteBuffer);
         }
-        // check read multiple of 19 and treat in a loop
-        if ((read > 0) && ((read % 19) == 0)) {
-            for (int m=0; m<read; m+=19) {
-                strncpy(mByteBuffCpy, &mByteBuffer[m], 19);
-                mByteBuffCpy[19] = 0;    // insure end of string
-                mesgOK = 1;
-                length = 0;
-                // Treat M4FW event, format: "DMA2DDR-BnLxxxxxxxx"
-                if (strstr(mByteBuffCpy, "DMA2DDR-B")) {
-                    if (mByteBuffCpy[9] >= '0' && mByteBuffCpy[9] <= '2') {
-                        buffIdx = mByteBuffCpy[9] - '0';
-                        if (mDdrBuffAwaited == buffIdx) {
-                            if (mByteBuffCpy[10] == 'L') {
-                                for (int i=0; i<8; i++) {
-                                    length <<=4;
-                                    if (mByteBuffCpy[11+i] >= '0' && mByteBuffCpy[11+i] <= '9') {
-                                        length |= (mByteBuffCpy[11+i] - '0');
-                                    } else if (mByteBuffCpy[11+i] >= 'a' && mByteBuffCpy[11+i] <= 'f') {
-                                        length |= (mByteBuffCpy[11+i] - 'a' + 10);
-                                    } else {
-                                        mesgOK = -1;
-                                        break;
-                                    }
-                                }
-                                if (mesgOK == 1) {
-                                    mDdrBuffAwaited++;
-                                    if (mDdrBuffAwaited > 2) {
-                                        mDdrBuffAwaited = 0;
-                                    }
-                                    mNbCompData += length;
-
-                                    unsigned char* pCompData = (unsigned char*)mmappedData[buffIdx];
-                                    for (int i=0; i<length; i++) {
-                                        mNbUncompData += (1 + (*(pCompData+i) >> 5));
-                                    }
-
-                                    wsize= write_raw_file(mmappedData[buffIdx], length);
-                                    if (wsize == (int32_t)length) {
-                                        mNbWrittenInFileData += wsize;
-                                        printf("[%ld.%06ld] vitural_tty_thread data EVENT buffIdx=%d mNbCompData=%u mNbUncompData=%u mNbWrittenInFileData=%u\n", 
-                                            (long int)tval_result.tv_sec, (long int)tval_result.tv_usec, buffIdx, mNbCompData, mNbUncompData, mNbWrittenInFileData);
-                                        
-                                        gdk_threads_add_idle (refreshUI_CB, window);
-
-                                    } else {
-                                        mErrorDetected = 2;
-                                    }
-                                }
-                            } else {
-                                mesgOK = -2;
-                            }
-                        } else {
-                            printf("vitural_tty_thread ERROR, mDdrBuffAwaited=%d buffIdx=%d", mDdrBuffAwaited, buffIdx);
-                            mesgOK = -3;
-                        }
-                    } else {
-                        mesgOK = -4;
-                    }
-                } else {
-                    mesgOK = 0;
-                }
-            }
-            if (mesgOK < 0) {
-                mErrorDetected = 1;
-                printf("[%ld.%06ld] vitural_tty_thread DATA EVENT ERROR mesgOK=%d\n", 
-                    (long int)tval_result.tv_sec, (long int)tval_result.tv_usec, mesgOK);
-            }
-        }
         sleep_ms(5);      // give time to UI
     }
 }
@@ -735,11 +644,8 @@ void *vitural_tty_thread(void *arg)
 void *sdb_thread(void *arg)
 {
     int ret, rc;
-    int8_t mesgOK = 1;
-    uint32_t length;
     int32_t wsize;
     int buffIdx = 0;
-    char tmpStr[100];
     char buf[16];
     rpmsg_sdb_ioctl_get_data_size q_get_data_size;
 
@@ -765,7 +671,7 @@ void *sdb_thread(void *arg)
                 /* Get buffer data size*/
                 q_get_data_size.bufferId = mDdrBuffAwaited;
 
-                if(ioctl(fd, RPMSG_SDB_IOCTL_GET_DATA_SIZE, &q_get_data_size) < 0) {
+                if(ioctl(mFdSdbRpmsg, RPMSG_SDB_IOCTL_GET_DATA_SIZE, &q_get_data_size) < 0) {
                     error(EXIT_FAILURE, errno, "Failed to get data size");
                 }
 
@@ -781,7 +687,7 @@ void *sdb_thread(void *arg)
                     wsize= write_raw_file(mmappedData[mDdrBuffAwaited], q_get_data_size.size);
                     if (wsize == (int32_t)q_get_data_size.size) {
                         mNbWrittenInFileData += wsize;
-                        printf("[%ld.%06ld] vitural_tty_thread data EVENT buffIdx=%d mNbCompData=%u mNbUncompData=%u mNbWrittenInFileData=%u\n", 
+                        printf("[%ld.%06ld] sdb_thread data EVENT buffIdx=%d mNbCompData=%u mNbUncompData=%u mNbWrittenInFileData=%u\n", 
                             (long int)tval_result.tv_sec, (long int)tval_result.tv_usec, buffIdx, mNbCompData, mNbUncompData, mNbWrittenInFileData);
                         
                         gdk_threads_add_idle (refreshUI_CB, window);
@@ -807,16 +713,11 @@ void *sdb_thread(void *arg)
 }
 int main(int argc, char **argv)
 {
-    int ret = 0, i, j, cmd, rc, mesgOK;
+    int ret = 0, i, cmd;
     char *filename = "/dev/rpmsg-sdb";
-    char buf[32];
     rpmsg_sdb_ioctl_set_efd q_set_efd;
-    unsigned int length;
     char FwName[30];
-    //strcpy(FIRM_NAME, "rprochdrlawc01100.elf");
-    //strcpy(FIRM_NAME, "how2eldb_CM4.elf");
-    //strcpy(FIRM_NAME, "how2eldb02110.elf");
-    strcpy(FIRM_NAME, "how2eldb03110.elf");
+    strcpy(FIRM_NAME, "how2eldb04120.elf");
     /* check if copro is already running */
     ret = copro_isFwRunning();
     if (ret) {
@@ -864,12 +765,10 @@ fwrunning:
     }
     virtual_tty_send_command(strlen("r"), "r");    // needed to allow M4 to send any data over virtualTTY
     
-    /*
     if (pthread_create( &thread, NULL, vitural_tty_thread, NULL) != 0) {
         printf("vitural_tty_thread creation fails\n");
         goto end;
     }
-    */
     
     if (pthread_create( &thread, NULL, sdb_thread, NULL) != 0) {
         printf("sdb_thread creation fails\n");
@@ -881,18 +780,18 @@ fwrunning:
     printf("DBG filesize:%d\n",filesize);
 
     //Open file
-    fd = open(filename, O_RDWR);
-    assert(fd != -1);
+    mFdSdbRpmsg = open(filename, O_RDWR);
+    assert(mFdSdbRpmsg != -1);
     for (i=0;i<NB_BUF;i++){
         // Create the evenfd, and sent it to kernel driver, for notification of buffer full
         efd[i] = eventfd(0, 0);
         if (efd[i] == -1)
             error(EXIT_FAILURE, errno,
                 "failed to get eventfd");
-        printf("\nForward efd info for buf%d via cmd:%d with fd:%d and efd:%d\n",i,cmd,fd,efd[i]);
+        printf("\nForward efd info for buf%d via cmd:%d with mFdSdbRpmsg:%d and efd:%d\n",i,cmd,mFdSdbRpmsg,efd[i]);
         q_set_efd.bufferId = i;
         q_set_efd.eventfd = efd[i];
-        if(ioctl(fd, RPMSG_SDB_IOCTL_SET_EFD, &q_set_efd) < 0)
+        if(ioctl(mFdSdbRpmsg, RPMSG_SDB_IOCTL_SET_EFD, &q_set_efd) < 0)
             error(EXIT_FAILURE, errno,
                 "failed to set efd");
         // watch eventfd for input
@@ -902,7 +801,7 @@ fwrunning:
                                 filesize,
                                 PROT_READ | PROT_WRITE,
                                 MAP_PRIVATE,
-                                fd,
+                                mFdSdbRpmsg,
                                 0);
         printf("\nDBG mmappedData[%d]:%p\n", i, mmappedData[i]);
         assert(mmappedData[i] != MAP_FAILED);

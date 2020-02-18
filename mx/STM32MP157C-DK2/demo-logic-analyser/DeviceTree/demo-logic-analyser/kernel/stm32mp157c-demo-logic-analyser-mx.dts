@@ -10,8 +10,8 @@
 
 /dts-v1/;
 #include "stm32mp157c.dtsi"
-#include "stm32mp157c-m4-srm.dtsi"
 #include "stm32mp157cac-pinctrl.dtsi"
+#include "stm32mp157c-m4-srm.dtsi"
 
 /* USER CODE BEGIN includes */
 #include <dt-bindings/input/input.h>
@@ -558,6 +558,19 @@
 	};
 };
 
+&dma2 {
+	status = "disabled";
+};
+
+&dmamux1 {
+	dma-masters = <&dma1>;
+	dma-channels = <8>;
+};
+
+&m4_dma2 {
+	status = "okay";
+};
+
 &adc{
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&adc_pins_mx>;
@@ -637,7 +650,7 @@
 		};
 	};
 
-	panel@0 {
+	panel: panel@0 {
 		compatible = "orisetech,otm8009a";
 		power-supply = <&v3v3>;
 		reg = <0>;
@@ -717,6 +730,7 @@
 		interrupt-controller;
 		touchscreen-size-x = <480>;
 		touchscreen-size-y = <800>;
+		panel = <&panel>;
 		status = "okay";
 	};
 	touchscreen@38 {
@@ -727,6 +741,7 @@
 		interrupt-controller;
 		touchscreen-size-x = <480>;
 		touchscreen-size-y = <800>;
+		panel = <&panel>;
 		status = "okay";
 	};
 
@@ -774,9 +789,6 @@
 		reset-gpios = <&gpioa 10 GPIO_ACTIVE_LOW>;
 		interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-parent = <&gpiog>;
-		pinctrl-names = "default", "sleep";
-		pinctrl-0 = <&ltdc_pins_a>;
-		pinctrl-1 = <&ltdc_pins_sleep_a>;
 		status = "okay";
 
 		ports {
@@ -811,6 +823,7 @@
 	/* USER CODE BEGIN i2c4 */
 	i2c-scl-rising-time-ns = <185>;
 	i2c-scl-falling-time-ns = <20>;
+	clock-frequency = <400000>;
 	/delete-property/dmas;
 	/delete-property/dma-names;
 
@@ -837,11 +850,8 @@
 		interrupts-extended = <&exti_pwr 55 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
+		wakeup-source;
 		status = "okay";
-
-		st,main-control-register = <0x04>;
-		st,vin-control-register = <0xc0>;
-		st,usb-control-register = <0x20>;
 
 		regulators {
 			compatible = "st,stpmic1-regulators";
@@ -953,20 +963,20 @@
 			vbus_otg: pwr_sw1 {
 				regulator-name = "vbus_otg";
 				interrupts = <IT_OCP_OTG 0>;
-				regulator-active-discharge;
 			 };
 
 			 vbus_sw: pwr_sw2 {
 				regulator-name = "vbus_sw";
 				interrupts = <IT_OCP_SWOUT 0>;
-				regulator-active-discharge;
+				regulator-active-discharge = <1>;
 			 };
 		};
 
 		onkey {
 			compatible = "st,stpmic1-onkey";
-			interrupts = <IT_PONKEY_F 0>, <IT_PONKEY_R 1>;
+			interrupts = <IT_PONKEY_F 0>, <IT_PONKEY_R 0>;
 			interrupt-names = "onkey-falling", "onkey-rising";
+			power-off-time-sec = <10>;
 			status = "okay";
 		};
 
@@ -1039,19 +1049,6 @@
 
 	/* USER CODE BEGIN m4_timers2 */
 	/* USER CODE END m4_timers2 */
-};
-
-&dma2 {
-	status = "disabled";
-};
-
-&dmamux1 {
-	dma-masters = <&dma1>;
-	dma-channels = <8>;
-};
-
-&m4_dma2 {
-	status = "okay";
 };
 
 &pwr{
@@ -1214,6 +1211,8 @@
 	status = "okay";
 
 	/* USER CODE BEGIN uart4 */
+	/delete-property/dmas;
+	/delete-property/dma-names;
 	/* USER CODE END uart4 */
 };
 
@@ -1298,9 +1297,60 @@
 };
 
 /* USER CODE BEGIN addons */
+&dsi {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			dsi_in: endpoint {
+				remote-endpoint = <&ltdc_ep1_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			dsi_out: endpoint {
+				remote-endpoint = <&panel_in>;
+			};
+		};
+	};
+
+	panel: panel@0 {
+		compatible = "orisetech,otm8009a";
+		reg = <0>;
+		reset-gpios = <&gpioe 4 GPIO_ACTIVE_LOW>;
+		power-supply = <&v3v3>;
+		status = "okay";
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&dsi_out>;
+			};
+		};
+	};
+};
+
 &m4_rproc {
 memory-region = <&retram>, <&mcuram>, <&mcuram2>, <&vdev0vring0>,
 		<&vdev0vring1>, <&vdev0buffer>;
+};
+
+&adc {
+	status = "disabled";
+};
+
+&cpu0{
+	cpu-supply = <&vddcore>;
+};
+
+&cpu1{
+	cpu-supply = <&vddcore>;
 };
 
 &dma1 {
@@ -1309,10 +1359,6 @@ memory-region = <&retram>, <&mcuram>, <&mcuram2>, <&vdev0vring0>,
 
 &dma2 {
 	sram = <&dma_pool>;
-};
-
-&adc {
-	status = "disabled";
 };
 /* USER CODE END addons */
 

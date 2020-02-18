@@ -190,15 +190,15 @@
 	>;
 	pll1:st,pll@0 {
 		cfg = < 2 80 0 1 1 PQR(1,0,0) >;
-		frac = < 0x800>;
+		frac = < 0x800 >;
 	};
 	pll2:st,pll@1 {
 		cfg = < 2 65 1 0 0 PQR(1,1,1) >;
-		frac = < 0x1400>;
+		frac = < 0x1400 >;
 	};
 	pll3:st,pll@2 {
 		cfg = < 1 33 1 16 36 PQR(1,1,0) >;
-		frac = < 0x1a04>;
+		frac = < 0x1a04 >;
 	};
 	pll4:st,pll@3 {
 		cfg = < 3 98 5 7 7 PQR(1,1,0) >;
@@ -212,8 +212,7 @@
 	/* USER CODE BEGIN bsec */
 	board_id: board_id@ec {
 		reg = <0xec 0x4>;
-		status = "okay";
-		secure-status = "okay";
+		st,non-secure-otp;
 	};
 	/* USER CODE END bsec */
 };
@@ -263,6 +262,7 @@
 	/* USER CODE BEGIN i2c4 */
 	i2c-scl-rising-time-ns = <185>;
 	i2c-scl-falling-time-ns = <20>;
+	clock-frequency = <400000>;
 
 	pmic: stpmic@33 {
 		compatible = "st,stpmic1";
@@ -270,11 +270,8 @@
 		interrupts-extended = <&exti_pwr 55 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
+		wakeup-source;
 		status = "okay";
-
-		st,main-control-register = <0x04>;
-		st,vin-control-register = <0xc0>;
-		st,usb-control-register = <0x20>;
 
 		regulators {
 			compatible = "st,stpmic1-regulators";
@@ -560,5 +557,58 @@
 /delete-node/ &usart3_pins_a;
 /delete-node/ &usart3_pins_b;
 /delete-node/ &i2c4_pins_a;
+
+&rcc {
+	st,pkcs = <
+		CLK_CKPER_HSE
+		CLK_ETH_PLL4P
+		CLK_SDMMC12_PLL4P
+		CLK_DSI_DSIPLL
+		CLK_STGEN_HSE
+		CLK_USBPHY_HSE
+		CLK_SPI2S1_DISABLED
+		CLK_SPI2S23_PLL3Q
+		CLK_SPI45_DISABLED
+		CLK_SPI6_DISABLED
+		CLK_I2C46_HSI
+		CLK_SDMMC3_DISABLED
+		CLK_USBO_USBPHY
+		CLK_ADC_CKPER
+		CLK_CEC_LSE
+		CLK_I2C12_HSI
+		CLK_I2C35_DISABLED
+		CLK_UART1_DISABLED
+		CLK_UART24_HSI
+		CLK_UART35_DISABLED
+		CLK_UART6_DISABLED
+		CLK_UART78_DISABLED
+		CLK_SPDIF_DISABLED
+		CLK_SAI1_DISABLED
+		CLK_SAI2_PLL3Q
+		CLK_SAI3_DISABLED
+		CLK_SAI4_DISABLED
+		CLK_RNG1_LSI
+		CLK_LPTIM1_DISABLED
+		CLK_LPTIM23_DISABLED
+		CLK_LPTIM45_DISABLED
+	>;
+};
+&nvmem_layout {
+	nvmem-cells = <&part_number_otp>,
+		      <&monotonic_otp>,
+		      <&nand_otp>,
+		      <&uid_otp>,
+		      <&package_otp>,
+		      <&hw2_otp>,
+		      <&board_id>;
+
+	nvmem-cell-names = "part_number_otp",
+			   "monotonic_otp",
+			   "nand_otp",
+			   "uid_otp",
+			   "package_otp",
+			   "hw2_otp",
+			   "board_id";
+};
 /* USER CODE END addons */
 

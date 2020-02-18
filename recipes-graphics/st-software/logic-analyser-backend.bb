@@ -32,7 +32,7 @@ do_install() {
     install -m 0755 ${S}/backend/run_la.sh          ${D}${STM32MP_USERFS_MOUNTPOINT_IMAGE}/demo/la/
 
     install -d ${D}/lib/firmware/
-    install -m 0644 ${STM32MP_LOGICANALYSER_BASE}/mx/STM32MP157C-DK2/demo-logic-analyser/firmware/how2eldb03110.elf ${D}/lib/firmware/
+    install -m 0644 ${STM32MP_LOGICANALYSER_BASE}/mx/STM32MP157C-DK2/demo-logic-analyser/firmware/how2eldb04120.elf ${D}/lib/firmware/
 
     # start at startup
     install -d ${D}${STM32MP_USERFS_MOUNTPOINT_IMAGE}/weston-start-at-startup/
