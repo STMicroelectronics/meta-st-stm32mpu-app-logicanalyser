@@ -24,19 +24,19 @@ do_compile () {
 }
 
 do_install() {
-    install -d 										${D}${STM32MP_USERFS_MOUNTPOINT_IMAGE}/demo/la/
-    install -d 										${D}${STM32MP_USERFS_MOUNTPOINT_IMAGE}/demo/la/bin/
-    install -m 0755 ${B}/backend/backend    		${D}${STM32MP_USERFS_MOUNTPOINT_IMAGE}/demo/la/bin/
-    install -m 0755 ${B}/backend/la.css     		${D}${STM32MP_USERFS_MOUNTPOINT_IMAGE}/demo/la/bin/
-    install -m 0755 ${B}/backend/keyboard 			${D}${STM32MP_USERFS_MOUNTPOINT_IMAGE}/demo/la/bin/
-    install -m 0755 ${S}/backend/run_la.sh          ${D}${STM32MP_USERFS_MOUNTPOINT_IMAGE}/demo/la/
+    install -d 										${D}/usr/local/demo/la/
+    install -d 										${D}/usr/local/demo/la/bin/
+    install -m 0755 ${B}/backend/backend    		${D}/usr/local/demo/la/bin/
+    install -m 0755 ${B}/backend/la.css     		${D}/usr/local/demo/la/bin/
+    install -m 0755 ${B}/backend/keyboard 			${D}/usr/local/demo/la/bin/
+    install -m 0755 ${S}/backend/run_la.sh          ${D}/usr/local/demo/la/
 
     install -d ${D}/lib/firmware/
     install -m 0644 ${STM32MP_LOGICANALYSER_BASE}/mx/STM32MP157C-DK2/demo-logic-analyser/firmware/how2eldb04120.elf ${D}/lib/firmware/
 
     # start at startup
-    install -d ${D}${STM32MP_USERFS_MOUNTPOINT_IMAGE}/weston-start-at-startup/
-    install -m 0755 ${S}/backend/start_up_la.sh ${D}${STM32MP_USERFS_MOUNTPOINT_IMAGE}/weston-start-at-startup/
+    install -d ${D}/usr/local/weston-start-at-startup/
+    install -m 0755 ${S}/backend/start_up_la.sh ${D}/usr/local/weston-start-at-startup/
 }
 
 do_clean_be() {
@@ -46,7 +46,7 @@ do_clean_be() {
 addtask do_clean_be after do_clean before do_cleansstate
 
 PACKAGES =+ "${PN}-imageuserfs"
-FILES_${PN} += "${STM32MP_USERFS_MOUNTPOINT_IMAGE}/demo/la/"
-FILES_${PN} += "${STM32MP_USERFS_MOUNTPOINT_IMAGE}/demo/la/bin/"
-FILES_${PN} += "${STM32MP_USERFS_MOUNTPOINT_IMAGE}/weston-start-at-startup/"
+FILES_${PN} += "/usr/local/demo/la/"
+FILES_${PN} += "/usr/local/demo/la/bin/"
+FILES_${PN} += "/usr/local/weston-start-at-startup/"
 FILES_${PN} += "/lib/firmware/"

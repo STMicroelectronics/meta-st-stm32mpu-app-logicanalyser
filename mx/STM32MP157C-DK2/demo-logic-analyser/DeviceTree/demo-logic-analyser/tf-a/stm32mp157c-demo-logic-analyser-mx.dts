@@ -9,13 +9,15 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/pinctrl/stm32-pinfunc.h>
 #include <dt-bindings/clock/stm32mp1-clksrc.h>
+#include <dt-bindings/soc/st,stm32-etzpc.h>
 #include "stm32mp15-mx.dtsi"
 
-#include "stm32mp157c.dtsi"
-#include "stm32mp157cac-pinctrl.dtsi"
+#include "stm32mp157.dtsi"
+#include "stm32mp15xc.dtsi"
+#include "stm32mp15xxac-pinctrl.dtsi"
 #include "stm32mp15-ddr.dtsi"
-#include "stm32mp157c-security.dtsi"
 
 /* USER CODE BEGIN includes */
 #include <dt-bindings/power/stm32mp1-power.h>
@@ -26,29 +28,34 @@
 	compatible = "st,stm32mp157c-demo-logic-analyser-mx", "st,stm32mp157";
 
 	/* USER CODE BEGIN root */
-	chosen {
-		stdout-path = "serial0:115200n8";
+
+	memory@c0000000{
+		device_type = "memory";
+		reg = <0xc0000000 0x20000000>;
 	};
 
-	aliases {
+	vin:vin{
+		compatible = "regulator-fixed";
+		regulator-name = "vin";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+	};
+
+	aliases{
 		serial0 = &uart4;
 		serial1 = &usart3;
 		serial2 = &uart7;
-		gpio0 = &gpioa;
-		gpio1 = &gpiob;
-		gpio2 = &gpioc;
-		gpio3 = &gpiod;
-		gpio4 = &gpioe;
-		gpio5 = &gpiof;
-		gpio6 = &gpiog;
-		gpio7 = &gpioh;
-		gpio8 = &gpioi;
-		gpio25 = &gpioz;
-		i2c3 = &i2c4;
+		serial3 = &usart2;
+	};
+
+	chosen{
+		stdout-path = "serial0:115200n8";
 	};
 	/* USER CODE END root */
 
 	clocks {
+
 		/* USER CODE BEGIN clocks */
 		/* USER CODE END clocks */
 
@@ -188,19 +195,21 @@
 		CLK_LPTIM23_DISABLED
 		CLK_LPTIM45_DISABLED
 	>;
-	pll1:st,pll@0 {
-		cfg = < 2 80 0 1 1 PQR(1,0,0) >;
-		frac = < 0x800 >;
-	};
 	pll2:st,pll@1 {
+		compatible = "st,stm32mp1-pll";
+		reg = <1>;
 		cfg = < 2 65 1 0 0 PQR(1,1,1) >;
 		frac = < 0x1400 >;
 	};
 	pll3:st,pll@2 {
+		compatible = "st,stm32mp1-pll";
+		reg = <2>;
 		cfg = < 1 33 1 16 36 PQR(1,1,0) >;
 		frac = < 0x1a04 >;
 	};
 	pll4:st,pll@3 {
+		compatible = "st,stm32mp1-pll";
+		reg = <3>;
 		cfg = < 3 98 5 7 7 PQR(1,1,0) >;
 	};
 };
@@ -210,40 +219,56 @@
 	secure-status = "okay";
 
 	/* USER CODE BEGIN bsec */
-	board_id: board_id@ec {
+
+	board_id:board_id@ec{
 		reg = <0xec 0x4>;
 		st,non-secure-otp;
 	};
 	/* USER CODE END bsec */
 };
 
+&cryp1{
+	status = "okay";
+
+	/* USER CODE BEGIN cryp1 */
+	/* USER CODE END cryp1 */
+};
+
 &etzpc{
 	st,decprot = <
 	/*"Non Secured" peripherals*/
 	DECPROT(STM32MP1_ETZPC_ADC_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
+	DECPROT(STM32MP1_ETZPC_CRYP1_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
+	DECPROT(STM32MP1_ETZPC_DMA1_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
+	DECPROT(STM32MP1_ETZPC_DMA2_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
+	DECPROT(STM32MP1_ETZPC_DMAMUX_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
 	DECPROT(STM32MP1_ETZPC_ETH_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
+	DECPROT(STM32MP1_ETZPC_HASH1_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
 	DECPROT(STM32MP1_ETZPC_CEC_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
 	DECPROT(STM32MP1_ETZPC_I2C1_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
 	DECPROT(STM32MP1_ETZPC_I2C4_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
 	DECPROT(STM32MP1_ETZPC_SPI2_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
 	DECPROT(STM32MP1_ETZPC_RNG1_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
 	DECPROT(STM32MP1_ETZPC_SAI2_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
-	DECPROT(STM32MP1_ETZPC_TIM6_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
 	DECPROT(STM32MP1_ETZPC_UART4_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
 	DECPROT(STM32MP1_ETZPC_USART2_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
 	DECPROT(STM32MP1_ETZPC_OTG_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
 	DECPROT(STM32MP1_ETZPC_VREFBUF_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
-	/*"Mcu Isolation" peripherals*/
-	DECPROT(STM32MP1_ETZPC_TIM2_ID, DECPROT_MCU_ISOLATION, DECPROT_UNLOCK)
+	/*"Secured" peripherals*/
+	DECPROT(STM32MP1_ETZPC_DDRCTRL_ID, DECPROT_S_RW, DECPROT_UNLOCK)
+	DECPROT(STM32MP1_ETZPC_DDRPHYC_ID, DECPROT_S_RW, DECPROT_UNLOCK)
+	DECPROT(STM32MP1_ETZPC_STGENC_ID, DECPROT_S_RW, DECPROT_UNLOCK)
 
 	/*Restriction: following IDs are not managed  - please to use User-Section if needed:
-		STM32MP1_ETZPC_DMA1_ID, STM32MP1_ETZPC_DMA2_ID, STM32MP1_ETZPC_DMAMUX_ID,
 		STM32MP1_ETZPC_SRAMx_ID, STM32MP1_ETZPC_RETRAM_ID, STM32MP1_ETZPC_BKPSRAM_ID*/
 
 	/* USER CODE BEGIN etzpc_decprot */
 		/*STM32CubeMX generates a basic and standard configuration for ETZPC.
 		Additional device configurations can be added here if needed.
 		"etzpc" node could be also overloaded in "addons" User-Section.*/
+
+	DECPROT(STM32MP1_ETZPC_BKPSRAM_ID, DECPROT_S_RW, DECPROT_UNLOCK)
+
 	/* USER CODE END etzpc_decprot */
 	>;
 
@@ -251,6 +276,13 @@
 
 	/* USER CODE BEGIN etzpc */
 	/* USER CODE END etzpc */
+};
+
+&hash1{
+	status = "okay";
+
+	/* USER CODE BEGIN hash1 */
+	/* USER CODE END hash1 */
 };
 
 &i2c4{
@@ -264,62 +296,77 @@
 	i2c-scl-falling-time-ns = <20>;
 	clock-frequency = <400000>;
 
-	pmic: stpmic@33 {
+	pmic:stpmic@33{
 		compatible = "st,stpmic1";
 		reg = <0x33>;
 		interrupts-extended = <&exti_pwr 55 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		wakeup-source;
 		status = "okay";
 
-		regulators {
+		regulators{
 			compatible = "st,stpmic1-regulators";
-
+			buck1-supply = <&vin>;
+			buck2-supply = <&vin>;
+			buck3-supply = <&vin>;
+			buck4-supply = <&vin>;
 			ldo1-supply = <&v3v3>;
+			ldo2-supply = <&vin>;
 			ldo3-supply = <&vdd_ddr>;
+			ldo4-supply = <&vin>;
+			ldo5-supply = <&vin>;
 			ldo6-supply = <&v3v3>;
+			vref_ddr-supply = <&vin>;
+			boost-supply = <&vin>;
+			pwr_sw1-supply = <&bst_out>;
+			pwr_sw2-supply = <&bst_out>;
 
-			vddcore: buck1 {
+			vddcore:buck1{
 				regulator-name = "vddcore";
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-always-on;
 				regulator-initial-mode = <0>;
 				regulator-over-current-protection;
-				lp-stop {
+
+				lp-stop{
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <1200000>;
 				};
-				standby-ddr-sr {
+
+				standby-ddr-sr{
 					regulator-off-in-suspend;
 				};
-				standby-ddr-off {
+
+				standby-ddr-off{
 					regulator-off-in-suspend;
 				};
 			};
 
-			vdd_ddr: buck2 {
+			vdd_ddr:buck2{
 				regulator-name = "vdd_ddr";
 				regulator-min-microvolt = <1350000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-always-on;
 				regulator-initial-mode = <0>;
 				regulator-over-current-protection;
-				lp-stop {
+
+				lp-stop{
 					regulator-suspend-microvolt = <1350000>;
 					regulator-on-in-suspend;
 				};
-				standby-ddr-sr {
+
+				standby-ddr-sr{
 					regulator-suspend-microvolt = <1350000>;
 					regulator-on-in-suspend;
 				};
-				standby-ddr-off {
+
+				standby-ddr-off{
 					regulator-off-in-suspend;
 				};
 			};
 
-			vdd: buck3 {
+			vdd:buck3{
 				regulator-name = "vdd";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
@@ -327,133 +374,169 @@
 				st,mask-reset;
 				regulator-initial-mode = <0>;
 				regulator-over-current-protection;
-				lp-stop {
+
+				lp-stop{
 					regulator-suspend-microvolt = <3300000>;
 					regulator-on-in-suspend;
 				};
-				standby-ddr-sr {
+
+				standby-ddr-sr{
 					regulator-suspend-microvolt = <3300000>;
 					regulator-on-in-suspend;
 				};
-				standby-ddr-off {
+
+				standby-ddr-off{
 					regulator-suspend-microvolt = <3300000>;
 					regulator-on-in-suspend;
 				};
 			};
 
-			v3v3: buck4 {
+			v3v3:buck4{
 				regulator-name = "v3v3";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 				regulator-over-current-protection;
 				regulator-initial-mode = <0>;
-				lp-stop {
+
+				lp-stop{
 					regulator-suspend-microvolt = <3300000>;
 					regulator-on-in-suspend;
 				};
-				standby-ddr-sr {
+
+				standby-ddr-sr{
 					regulator-off-in-suspend;
 				};
-				standby-ddr-off {
+
+				standby-ddr-off{
 					regulator-off-in-suspend;
 				};
 			};
 
-			v1v8_audio: ldo1 {
+			v1v8_audio:ldo1{
 				regulator-name = "v1v8_audio";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
-				standby-ddr-sr {
-						regulator-off-in-suspend;
-					};
-					standby-ddr-off {
-						regulator-off-in-suspend;
-					};
+
+				standby-ddr-sr{
+					regulator-off-in-suspend;
+				};
+
+				standby-ddr-off{
+					regulator-off-in-suspend;
+				};
 			};
 
-			v3v3_hdmi: ldo2 {
+			v3v3_hdmi:ldo2{
 				regulator-name = "v3v3_hdmi";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
-				standby-ddr-sr {
+
+				standby-ddr-sr{
 					regulator-off-in-suspend;
 				};
-				standby-ddr-off {
+
+				standby-ddr-off{
 					regulator-off-in-suspend;
 				};
 			};
 
-			vtt_ddr: ldo3 {
+			vtt_ddr:ldo3{
 				regulator-name = "vtt_ddr";
 				regulator-min-microvolt = <500000>;
 				regulator-max-microvolt = <750000>;
 				regulator-always-on;
 				regulator-over-current-protection;
-				lp-stop {
+
+				lp-stop{
 					regulator-off-in-suspend;
 				};
-				standby-ddr-sr {
+
+				standby-ddr-sr{
 					regulator-off-in-suspend;
 				};
-				standby-ddr-off {
+
+				standby-ddr-off{
 					regulator-off-in-suspend;
 				};
 			};
 
-			vdd_usb: ldo4 {
+			vdd_usb:ldo4{
 				regulator-name = "vdd_usb";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				standby-ddr-sr {
-					regulator-off-in-suspend;
+				regulator-always-on;
+
+				standby-ddr-sr{
+					regulator-on-in-suspend;
 				};
-				standby-ddr-off {
+
+				standby-ddr-off{
 					regulator-off-in-suspend;
 				};
 			};
 
-			vdda: ldo5 {
+			vdda:ldo5{
 				regulator-name = "vdda";
 				regulator-min-microvolt = <2900000>;
 				regulator-max-microvolt = <2900000>;
 				regulator-boot-on;
-				standby-ddr-sr {
+
+				standby-ddr-sr{
 					regulator-off-in-suspend;
 				};
-				standby-ddr-off {
+
+				standby-ddr-off{
 					regulator-off-in-suspend;
 				};
 			};
 
-			v1v2_hdmi: ldo6 {
+			v1v2_hdmi:ldo6{
 				regulator-name = "v1v2_hdmi";
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <1200000>;
 				regulator-always-on;
-				standby-ddr-sr {
+
+				standby-ddr-sr{
 					regulator-off-in-suspend;
 				};
-				standby-ddr-off {
+
+				standby-ddr-off{
 					regulator-off-in-suspend;
 				};
 			};
 
-			vref_ddr: vref_ddr {
+			vref_ddr:vref_ddr{
 				regulator-name = "vref_ddr";
 				regulator-always-on;
 				regulator-over-current-protection;
-				lp-stop {
+
+				lp-stop{
 					regulator-on-in-suspend;
 				};
-				standby-ddr-sr {
+
+				standby-ddr-sr{
 					regulator-on-in-suspend;
 				};
-				standby-ddr-off {
+
+				standby-ddr-off{
 					regulator-off-in-suspend;
 				};
+			};
+
+			bst_out:boost{
+				regulator-name = "bst_out";
+			};
+
+			vbus_otg:pwr_sw1{
+				regulator-name = "vbus_otg";
+			};
+
+			vbus_sw:pwr_sw2{
+				regulator-name = "vbus_sw";
+				regulator-active-discharge = <1>;
 			};
 		};
 	};
@@ -469,22 +552,20 @@
 	/* USER CODE END iwdg2 */
 };
 
-&pwr{
+&pwr_regulators{
 	status = "okay";
 	secure-status = "okay";
 
-	/* USER CODE BEGIN pwr */
+	/* USER CODE BEGIN pwr_regulators */
 	system_suspend_supported_soc_modes = <
 		STM32_PM_CSLEEP_RUN
 		STM32_PM_CSTOP_ALLOW_LP_STOP
 		STM32_PM_CSTOP_ALLOW_STANDBY_DDR_SR
 	>;
 	system_off_soc_mode = <STM32_PM_CSTOP_ALLOW_STANDBY_DDR_OFF>;
-
-	pwr-regulators {
-		vdd-supply = <&vdd>;
-	};
-	/* USER CODE END pwr */
+	vdd-supply = <&vdd>;
+	vdd_3v3_usbfs-supply = <&vdd_usb>;
+	/* USER CODE END pwr_regulators */
 };
 
 &rcc{
@@ -519,7 +600,7 @@
 	status = "okay";
 
 	/* USER CODE BEGIN sdmmc1 */
-	broken-cd;
+	disable-wp;
 	st,neg-edge;
 	bus-width = <4>;
 	vmmc-supply = <&v3v3>;
@@ -543,72 +624,74 @@
 	/* USER CODE END uart4 */
 };
 
-/* USER CODE BEGIN addons */
-/delete-node/ &qspi_bk1_pins_a;
-/delete-node/ &qspi_bk2_pins_a;
-/delete-node/ &qspi_clk_pins_a;
-/delete-node/ &sdmmc1_b4_pins_a;
-/delete-node/ &sdmmc1_dir_pins_a;
-/delete-node/ &sdmmc1_dir_pins_b;
-/delete-node/ &sdmmc2_b4_pins_a;
-/delete-node/ &sdmmc2_d47_pins_a;
-/delete-node/ &uart4_pins_a;
-/delete-node/ &uart7_pins_a;
-/delete-node/ &usart3_pins_a;
-/delete-node/ &usart3_pins_b;
-/delete-node/ &i2c4_pins_a;
+&usbotg_hs{
+	status = "okay";
 
-&rcc {
-	st,pkcs = <
-		CLK_CKPER_HSE
-		CLK_ETH_PLL4P
-		CLK_SDMMC12_PLL4P
-		CLK_DSI_DSIPLL
-		CLK_STGEN_HSE
-		CLK_USBPHY_HSE
-		CLK_SPI2S1_DISABLED
-		CLK_SPI2S23_PLL3Q
-		CLK_SPI45_DISABLED
-		CLK_SPI6_DISABLED
-		CLK_I2C46_HSI
-		CLK_SDMMC3_DISABLED
-		CLK_USBO_USBPHY
-		CLK_ADC_CKPER
-		CLK_CEC_LSE
-		CLK_I2C12_HSI
-		CLK_I2C35_DISABLED
-		CLK_UART1_DISABLED
-		CLK_UART24_HSI
-		CLK_UART35_DISABLED
-		CLK_UART6_DISABLED
-		CLK_UART78_DISABLED
-		CLK_SPDIF_DISABLED
-		CLK_SAI1_DISABLED
-		CLK_SAI2_PLL3Q
-		CLK_SAI3_DISABLED
-		CLK_SAI4_DISABLED
-		CLK_RNG1_LSI
-		CLK_LPTIM1_DISABLED
-		CLK_LPTIM23_DISABLED
-		CLK_LPTIM45_DISABLED
-	>;
+	/* USER CODE BEGIN usbotg_hs */
+	phys = <&usbphyc_port1 0>;
+	phy-names = "usb2-phy";
+	usb-role-switch;
+	/* USER CODE END usbotg_hs */
 };
-&nvmem_layout {
-	nvmem-cells = <&part_number_otp>,
-		      <&monotonic_otp>,
-		      <&nand_otp>,
-		      <&uid_otp>,
-		      <&package_otp>,
-		      <&hw2_otp>,
-		      <&board_id>;
 
-	nvmem-cell-names = "part_number_otp",
-			   "monotonic_otp",
-			   "nand_otp",
-			   "uid_otp",
-			   "package_otp",
-			   "hw2_otp",
-			   "board_id";
+&usbphyc{
+	status = "okay";
+
+	/* USER CODE BEGIN usbphyc */
+	/* USER CODE END usbphyc */
+};
+
+&usbphyc_port0{
+	status = "okay";
+
+	/* USER CODE BEGIN usbphyc_port0 */
+	phy-supply = <&vdd_usb>;
+	/* USER CODE END usbphyc_port0 */
+};
+
+&usbphyc_port1{
+	status = "okay";
+
+	/* USER CODE BEGIN usbphyc_port1 */
+	phy-supply = <&vdd_usb>;
+	/* USER CODE END usbphyc_port1 */
+};
+
+/* USER CODE BEGIN addons */
+
+&cpu0{
+	cpu-supply = <&vddcore>;
+};
+
+&cpu1{
+	cpu-supply = <&vddcore>;
+};
+
+&nvmem_layout{
+	nvmem-cells = <&cfg0_otp>,
+			<&part_number_otp>,
+			<&monotonic_otp>,
+			<&nand_otp>,
+			<&uid_otp>,
+			<&package_otp>,
+			<&hw2_otp>,
+			<&pkh_otp>,
+			<&board_id>;
+	nvmem-cell-names = "cfg0_otp",
+			"part_number_otp",
+			"monotonic_otp",
+			"nand_otp",
+			"uid_otp",
+			"package_otp",
+			"hw2_otp",
+			"pkh_otp",
+			"board_id";
+};
+
+&timers15{
+	secure-status = "okay";
+	st,hsi-cal-input = <7>;
+	st,csi-cal-input = <8>;
 };
 /* USER CODE END addons */
 
