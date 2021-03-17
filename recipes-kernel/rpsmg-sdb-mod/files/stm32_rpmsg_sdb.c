@@ -61,9 +61,9 @@ struct rpmsg_sdb_t {
 
 struct device *rpmsg_sdb_dev;
 
-static int rpmsg_sdb_format_txbuf_string(struct sdb_buf_t *buffer, char *bufinfo_str)
+static int rpmsg_sdb_format_txbuf_string(struct sdb_buf_t *buffer, char *bufinfo_str, size_t bufinfo_str_size)
 {
-	return sprintf(bufinfo_str, "B%dA%08xL%08x", buffer->index, buffer->paddr, buffer->size);
+	return snprintf(bufinfo_str, bufinfo_str_size, "B%dA%08xL%08x", buffer->index, buffer->paddr, buffer->size);
 }
 
 static long rpmsg_sdb_decode_rxbuf_string(char *rxbuf_str, int *buffer_id, size_t *size)
@@ -105,7 +105,7 @@ static int rpmsg_sdb_send_buf_info(struct rpmsg_sdb_t *rpmsg_sdb, struct sdb_buf
 {
 	int count = 0, ret = 0;
 	const unsigned char *tbuf;
-	char mybuf[21];
+	char mybuf[32];
 	int msg_size;
 	struct rpmsg_device *_rpdev;
 
@@ -115,7 +115,7 @@ static int rpmsg_sdb_send_buf_info(struct rpmsg_sdb_t *rpmsg_sdb, struct sdb_buf
 	if (msg_size < 0)
 		return msg_size;
 
-	count = rpmsg_sdb_format_txbuf_string(buffer, mybuf);
+	count = rpmsg_sdb_format_txbuf_string(buffer, mybuf, 32);
 	tbuf = &mybuf[0];
 
 	do {
