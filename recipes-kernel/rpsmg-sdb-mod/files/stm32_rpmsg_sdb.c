@@ -63,6 +63,11 @@ struct device *rpmsg_sdb_dev;
 
 static int rpmsg_sdb_format_txbuf_string(struct sdb_buf_t *buffer, char *bufinfo_str, size_t bufinfo_str_size)
 {
+	pr_debug("rpmsg_sdb(%s): Buffer index:%d, addr:%08x, size:%08x\n",
+				__func__,
+				buffer->index,
+				buffer->paddr,
+				buffer->size);
 	return snprintf(bufinfo_str, bufinfo_str_size, "B%dA%08xL%08x", buffer->index, buffer->paddr, buffer->size);
 }
 
@@ -74,23 +79,23 @@ static long rpmsg_sdb_decode_rxbuf_string(char *rxbuf_str, int *buffer_id, size_
 	long bufid;
 	const char delimiter[1] = {'L'};
 
-	//pr_err("%s: rxbuf_str:%s\n", __func__, rxbuf_str);
+	pr_debug("rpmsg_sdb(%s): rxbuf_str:%s\n", __func__, rxbuf_str);
 
 	/* Get first part containing the buffer id */
 	sub_str = strsep(&rxbuf_str, delimiter);
 
-	//pr_err("%s: sub_str:%s\n", __func__, sub_str);
+	pr_debug("rpmsg_sdb(%s): sub_str:%s\n", __func__, sub_str);
 
 	/* Save Buffer id and size: template BxLyyyyyyyy*/
 	ret = kstrtol(&sub_str[1], 10, &bufid);
 	if (ret < 0) {
-		pr_err("%s: extract of buffer id failed(%d)", __func__, ret);
+		pr_err("rpmsg_sdb(ERROR): Extract of buffer id failed(%d)", ret);
 		goto out;
 	}
 
 	ret = kstrtol(&rxbuf_str[2], 16, &bsize);
 	if (ret < 0) {
-		pr_err("%s: extract of buffer size failed(%d)", __func__, ret);
+		pr_err("rpmsg_sdb(ERROR): Extract of buffer size failed(%d)", ret);
 		goto out;
 	}
 
@@ -169,16 +174,21 @@ static int rpmsg_sdb_mmap(struct file *file, struct vm_area_struct *vma)
 		_buffer->size = NumPages * PAGE_SIZE;
 		_buffer->writing_size = -1;
 		_buffer->vaddr = dma_alloc_wc(rpmsg_sdb_dev,
-												_buffer->size,
-												&_buffer->paddr,
-												GFP_KERNEL);
+							_buffer->size,
+							&_buffer->paddr,
+							GFP_KERNEL);
 
 		if (!_buffer->vaddr) {
-			pr_err("%s: Memory allocation issue\n", __func__);
+			pr_err("rpmsg_sdb(ERROR): Memory allocation issue\n");
 			return -ENOMEM;
 		}
 
-		pr_debug("%s - dma_alloc_wc done - paddr[%d]:%x - vaddr[%d]:%p\n", __func__, _buffer->index, _buffer->paddr, _buffer->index, _buffer->vaddr);
+		pr_debug("rpmsg_sdb(%s): dma_alloc_wc done - paddr[%d]:%x - vaddr[%d]:%p\n",
+					__func__,
+					_buffer->index,
+					_buffer->paddr,
+					_buffer->index,
+					_buffer->vaddr);
 
 		/* Get address for userland */
 		if (remap_pfn_range(vma, vma->vm_start,
@@ -246,6 +256,12 @@ static int rpmsg_sdb_close(struct inode *inode, struct file *file)
 
 	list_for_each_entry_safe(pos, next, &_rpmsg_sdb->buffer_list, buflist) {
 		/* Free the CMA allocation */
+		pr_debug("rpmsg_sdb(%s): Free the CMA allocation: pos->size:%08x, pos->vaddr:%08x, pos->paddr:%08x\n",
+					__func__,
+					pos->size,
+					pos->vaddr,
+					pos->paddr);
+
 		dma_free_wc(rpmsg_sdb_dev, pos->size, pos->vaddr,
 					pos->paddr);
 		/* Remove the buffer from the list */
@@ -297,13 +313,21 @@ static long rpmsg_sdb_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		if (!list_empty(&_rpmsg_sdb->buffer_list)) {
 			lastbuffer = list_last_entry(&_rpmsg_sdb->buffer_list, struct sdb_buf_t, buflist);
 			idx = lastbuffer->index;
+			
+			/* Check last index was properly initiated*/
+			if (lastbuffer->vaddr == NULL) {
+				pr_err("rpmsg_sdb(ERROR): RPMSG_SDB_IOCTL_SET_EFD - previous buffer was not allocated\n");
+				mutex_unlock(&_rpmsg_sdb->mutex);
+				return -EBADE;
+			}
+
 			/* increment this index for the next buffer creation*/
 			idx++;
 		}
 
 		if (copy_from_user(&q_set_efd, (struct rpmsg_sdb_ioctl_set_efd *)argp,
 					sizeof(struct rpmsg_sdb_ioctl_set_efd))) {
-			pr_warn("rpmsg_sdb: RPMSG_SDB_IOCTL_GET_DATA_SIZE: copy to user failed.\n");
+			pr_err("rpmsg_sdb(ERROR): RPMSG_SDB_IOCTL_SET_EFD - copy from user failed\n");
 			mutex_unlock(&_rpmsg_sdb->mutex);
 			return -EFAULT;
 		}
@@ -312,6 +336,7 @@ static long rpmsg_sdb_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		buffer = kmalloc(sizeof(struct sdb_buf_t), GFP_KERNEL);
 
 		buffer->index = idx;
+		buffer->vaddr = NULL;
 		buffer->efd_ctx = eventfd_ctx_fdget(q_set_efd.eventfd);
 		list_add_tail(&buffer->buflist, &_rpmsg_sdb->buffer_list);
 
@@ -321,7 +346,7 @@ static long rpmsg_sdb_ioctl(struct file *file, unsigned int cmd, unsigned long a
 	case RPMSG_SDB_IOCTL_GET_DATA_SIZE:
 		if (copy_from_user(&q_get_dat_size, (struct rpmsg_sdb_ioctl_get_data_size *)argp,
 					sizeof(struct rpmsg_sdb_ioctl_get_data_size))) {
-			pr_warn("rpmsg_sdb: RPMSG_SDB_IOCTL_GET_DATA_SIZE: copy from user failed.\n");
+			pr_err("rpmsg_sdb(ERROR): RPMSG_SDB_IOCTL_GET_DATA_SIZE - copy from user failed\n");
 			return -EFAULT;
 		}
 
@@ -340,7 +365,7 @@ static long rpmsg_sdb_ioctl(struct file *file, unsigned int cmd, unsigned long a
 
 		if (copy_to_user((struct rpmsg_sdb_ioctl_get_data_size *)argp, &q_get_dat_size,
 					 sizeof(struct rpmsg_sdb_ioctl_get_data_size))) {
-			pr_warn("rpmsg_sdb: RPMSG_SDB_IOCTL_GET_DATA_SIZE: copy to user failed.\n");
+			pr_err("rpmsg_sdb(ERROR): RPMSG_SDB_IOCTL_GET_DATA_SIZE - copy to user failed\n");
 			return -EFAULT;
 		}
 
@@ -484,11 +509,11 @@ static int __init rpmsg_sdb_drv_init(void)
 	ret = register_rpmsg_driver(&rpmsg_sdb_rmpsg_drv);
 
 	if (ret) {
-		pr_err("%s(rpmsg_sdb): Failed to register device\n", __func__);
+		pr_err("rpmsg_sdb(ERROR): Failed to register device\n");
 		return ret;
 	}
 
-	pr_info("%s(rpmsg_sdb): Init done\n", __func__);
+	pr_info("rpmsg_sdb: Init done\n");
 
 	return ret;
 }
@@ -496,7 +521,7 @@ static int __init rpmsg_sdb_drv_init(void)
 static void __exit rpmsg_sdb_drv_exit(void)
 {
 	unregister_rpmsg_driver(&rpmsg_sdb_rmpsg_drv);
-	pr_info("%s(rpmsg_sdb): Exit\n", __func__);
+	pr_info("rpmsg_sdb: Exit\n");
 }
 
 module_init(rpmsg_sdb_drv_init);

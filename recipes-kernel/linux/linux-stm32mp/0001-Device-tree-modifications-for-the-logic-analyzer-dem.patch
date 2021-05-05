@@ -1,0 +1,54 @@
+From b9399d3cb2f14fbe44fc429971f0733e0d0445f6 Mon Sep 17 00:00:00 2001
+From: Jean-Christophe Trotin <jean-christophe.trotin@st.com>
+Date: Fri, 26 Feb 2021 14:20:15 +0100
+Subject: [PATCH] Device tree modifications for the logic analyzer demo
+
+---
+ arch/arm/boot/dts/stm32mp15xx-dkx.dtsi | 27 +++++++++++++++++++++++++-
+ 1 file changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/boot/dts/stm32mp15xx-dkx.dtsi b/arch/arm/boot/dts/stm32mp15xx-dkx.dtsi
+index acff8755d..1ba51168a 100644
+--- a/arch/arm/boot/dts/stm32mp15xx-dkx.dtsi
++++ b/arch/arm/boot/dts/stm32mp15xx-dkx.dtsi
+@@ -158,7 +158,29 @@
+ };
+ 
+ &dma2 {
+-	sram = <&dma_pool>;
++	status = "disabled";
++};
++
++&m4_dma2 {
++	status = "okay";
++};
++
++&dmamux1{
++	dma-masters = <&dma1>;
++	dma-channels = <8>;
++
++	status = "okay";
++
++	/* USER CODE BEGIN dmamux1 */
++	/* USER CODE END dmamux1 */
++};
++
++&timers2{
++	status = "disabled";
++};
++
++&m4_timers2{
++	status = "okay";
+ };
+ 
+ &dts {
+@@ -512,6 +534,9 @@
+ 	interrupts = <68 1>;
+ 	wakeup-source;
+ 	status = "okay";
++	m4_system_resources{
++		status = "okay";
++	};
+ };
+ 
+ &pwr_regulators {

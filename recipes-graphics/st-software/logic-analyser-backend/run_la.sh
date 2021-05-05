@@ -10,7 +10,7 @@ gui_start() {
     #Rotation
     rot=0
 
-    insmod /lib/modules/$(uname -r)/kernel/drivers/misc/stm32_rpmsg_sdb.ko
+    insmod /lib/modules/$(uname -r)/extra/stm32_rpmsg_sdb.ko
     ${BACK_END} &
 }
 

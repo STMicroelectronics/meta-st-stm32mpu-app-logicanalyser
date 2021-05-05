@@ -379,7 +379,12 @@ close_raw_file(void) {
 static gboolean refreshUI_CB (gpointer data)
 {
     char tmpStr[100];
-   
+
+    if (mMachineState == STATE_SAMPLING) {
+        gtk_button_set_label (GTK_BUTTON (butSingle), "Stop");
+    } else {
+        gtk_button_set_label (GTK_BUTTON (butSingle), "Start");
+    }
     gtk_label_set_text (GTK_LABEL (state_value), machine_state_str[mMachineState]);
     sprintf(tmpStr, "%u", mNbCompData);
     gtk_label_set_text (GTK_LABEL (nbCompData_value), tmpStr);
@@ -408,6 +413,7 @@ static void single_clicked (GtkWidget *widget, gpointer data)
         virtual_tty_send_command(strlen(mSamplingStr), mSamplingStr);
         printf("Start sampling at %dMHz\n", mSampFreq_Hz);
         open_raw_file();
+        gdk_threads_add_idle (refreshUI_CB, window);
     } else if (mMachineState == STATE_SAMPLING) {
         virtual_tty_send_command(strlen("Exit"), "Exit");
         printf("Stop sampling\n");
@@ -425,7 +431,7 @@ static void f_scale_moved (GtkRange *range, gpointer user_data)
    GtkWidget *label = user_data;
 
    gdouble pos = gtk_range_get_value (range);
-   gdouble val = 1 + 19 * pos / 100;
+   gdouble val = 1 + 9 * pos / 100;
    gchar *str = g_strdup_printf ("%.0f", val);
    mSampFreq_Hz = atoi(str);
    gtk_label_set_text (GTK_LABEL (label), str);
@@ -717,7 +723,7 @@ int main(int argc, char **argv)
     char *filename = "/dev/rpmsg-sdb";
     rpmsg_sdb_ioctl_set_efd q_set_efd;
     char FwName[30];
-    strcpy(FIRM_NAME, "how2eldb04120.elf");
+    strcpy(FIRM_NAME, "how2eldb04140.elf");
     /* check if copro is already running */
     ret = copro_isFwRunning();
     if (ret) {
