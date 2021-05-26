@@ -31,4 +31,10 @@ Then, you can build the baseline and flash the built image as usual.
 ## 2. How to run the demonstration?
 1. Press the "USER1" button to start (resp. stop) the demonstration
 2. Select the sampling frequency (4 MHz per default)
-3. Start the sampling: the samples compressed data are stored in a ".dat" file in the "/usr/local/demo/la" directory
+3. Start the sampling:
+- For high data rate (more than 5 MHz sampling), it relies on a SDB Linux driver which provides DDR buffers allocations, and DDR DMA transfers<br>
+- For low data rate (less or equal to 5MHz sampling), it relies on virtual UART over RPMSG<br>
+- Data compression algorithm is done on Cortex-M4 side<br>
+- Compressed buffers are transfered to DDR by DMA or virtual UART<br>
+- In order to insure dynamic input data on PE8..12, these ports are initialized as output. Values are changed every 23 times<br>
+- On user interface, refresh is done every new MB of compressed data

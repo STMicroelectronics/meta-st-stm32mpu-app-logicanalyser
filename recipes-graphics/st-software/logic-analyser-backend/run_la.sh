@@ -10,14 +10,13 @@ gui_start() {
     #Rotation
     rot=0
 
-    insmod /lib/modules/$(uname -r)/extra/stm32_rpmsg_sdb.ko
     ${BACK_END} &
+# To get traces in a file, replace the previous line by the following one:
+#    ${BACK_END} &> la_trace.txt &
 }
 
 gui_stop() {
     killall backend
-    echo stop >/sys/class/remoteproc/remoteproc0/state
-    rmmod stm32_rpmsg_sdb.ko
 }
 
 pidof backend >/dev/null
