@@ -72,7 +72,7 @@
 #define RPMSG_SDB_IOCTL_GET_DATA_SIZE _IOWR('R', 0x01, struct rpmsg_sdb_ioctl_get_data_size *)
  
 #define TIMEOUT 60
-#define NB_BUF 3
+#define NB_BUF 10
  
 typedef struct
 {
@@ -163,6 +163,7 @@ static    GtkWidget *nbRpmsgFrame_value;
 static    GtkWidget *data_label;
 static    GtkWidget *data_value;
 static    GtkWidget *butSingle;
+static    GtkWidget *notchSetdata;
 
 
 /********************************************************************************
@@ -435,6 +436,7 @@ static gboolean refreshUI_CB (gpointer data)
  
 static void single_clicked (GtkWidget *widget, gpointer data)
 {
+    char setData = 'n';
     if (mMachineState == STATE_READY) {
         mMachineState = STATE_SAMPLING;        // needed to force Html refresh => TODO clean this
         mNbCompData=0;
@@ -444,13 +446,12 @@ static void single_clicked (GtkWidget *widget, gpointer data)
         mNbWrittenInFileData=0;
         mDdrBuffAwaited=0;
         mNbTty0Frame=0;
-        // build sampling string
-        sprintf(mSamplingStr, "S%03dM", mSampFreq_Hz);
-        if (mSampFreq_Hz <= 5) {
-            printf("CA7 : Start sampling at %dMHz (virtual UART over RPMSG)\n", mSampFreq_Hz);
-        } else {
-            printf("CA7 : Start sampling at %dMHz (SDB Linux driver and DDR DMA transfers)\n", mSampFreq_Hz);
+        if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (notchSetdata))) {
+            setData = 'y';
         }
+        // build sampling string
+        sprintf(mSamplingStr, "S%03dMs%c", mSampFreq_Hz, setData);
+        printf("CA7 : Start sampling at %dMHz\n", mSampFreq_Hz);
         virtual_tty_send_command(strlen(mSamplingStr), mSamplingStr);
         gdk_threads_add_idle (refreshUI_CB, window);
     } else if (mMachineState == STATE_SAMPLING) {
@@ -482,6 +483,9 @@ void *ui_thread(void *arg)
 {
    
     GtkWidget *mainGrid;
+    //GtkStyleContext *head_context;
+    //GtkStyleContext *val_context;
+    //GtkStyleContext *but_context;
     char tmpStr[100];
    
     time_t t = time(NULL);
@@ -501,14 +505,16 @@ void *ui_thread(void *arg)
     gtk_style_context_add_provider_for_screen(Screen, GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
  
     controlTitle_label = gtk_label_new ("Control");
-    gtk_widget_set_name (controlTitle_label, "control_title");
     gtk_widget_set_name(controlTitle_label, "title1");
    
     fTitle_label = gtk_label_new ("Sampling freq. (MHz) :");
     gtk_label_set_xalign (GTK_LABEL (fTitle_label), 0);
+    gtk_widget_set_name(fTitle_label, "header");
+
     fValue_label = gtk_label_new ("4");
     gtk_label_set_xalign (GTK_LABEL (fValue_label), 0);
-   
+    gtk_widget_set_name(fValue_label, "value");
+    
     fadjustment = gtk_adjustment_new (16, 0, 100, 5, 10, 0);
     f_scale = gtk_scale_new (GTK_ORIENTATION_HORIZONTAL, fadjustment);
     gtk_scale_set_draw_value (GTK_SCALE (f_scale), FALSE);
@@ -520,30 +526,44 @@ void *ui_thread(void *arg)
                     fValue_label);
    
     measurTitle_label = gtk_label_new ("Measurements");
-    gtk_widget_set_name (measurTitle_label, "measur_title");
     gtk_widget_set_name(measurTitle_label, "title1");
  
     state_label = gtk_label_new ("Machine state :");
     gtk_label_set_xalign (GTK_LABEL (state_label), 0);
+    gtk_widget_set_name(state_label, "header");
     state_value = gtk_label_new ("");
     gtk_label_set_xalign (GTK_LABEL (state_value), 0);
+    gtk_widget_set_name(state_value, "value");
    
     nbCompData_label = gtk_label_new ("Nb of compressed data :");
     gtk_label_set_xalign (GTK_LABEL (nbCompData_label), 0);
+    gtk_widget_set_name(nbCompData_label, "header");
     nbCompData_value = gtk_label_new ("");
     gtk_label_set_xalign (GTK_LABEL (nbCompData_value), 0);
+    gtk_widget_set_name(nbCompData_value, "value");
+
     nbRealData_label = gtk_label_new ("Nb of uncompressed data :");
     gtk_label_set_xalign (GTK_LABEL (nbRealData_label), 0);
+    gtk_widget_set_name(nbRealData_label, "header");
     nbRealData_value = gtk_label_new ("");
     gtk_label_set_xalign (GTK_LABEL (nbRealData_value), 0);
+    gtk_widget_set_name(nbRealData_value, "value");
+
     nbRpmsgFrame_label     = gtk_label_new ("Nb of RPMSG data frame :");
     gtk_label_set_xalign (GTK_LABEL (nbRpmsgFrame_label    ), 0);
+    gtk_widget_set_name(nbRpmsgFrame_label, "header");
+
     nbRpmsgFrame_value = gtk_label_new ("");
     gtk_label_set_xalign (GTK_LABEL (nbRpmsgFrame_value), 0);
+    gtk_widget_set_name(nbRpmsgFrame_value, "value");
+
     data_label = gtk_label_new ("Data :");
     gtk_label_set_xalign (GTK_LABEL (data_label), 0);
+    gtk_widget_set_name(data_label, "header");
+
     data_value = gtk_label_new ("");
     gtk_label_set_xalign (GTK_LABEL (data_value), 0);
+    gtk_widget_set_name(data_value, "value");
    
     gtk_label_set_text (GTK_LABEL (state_value), machine_state_str[mMachineState]);
     sprintf(tmpStr, "%u", mNbCompData);
@@ -552,19 +572,25 @@ void *ui_thread(void *arg)
     gtk_label_set_text (GTK_LABEL (nbRealData_value), tmpStr);
     sprintf(tmpStr, "%u", mNbWrittenInFileData);
     gtk_label_set_text (GTK_LABEL (nbRpmsgFrame_value), tmpStr);
-    //gtk_label_set_text (GTK_LABEL (fileName_value), mFileNameStr);
    
     butSingle = gtk_button_new_with_label("Start");
     g_signal_connect(butSingle,
                     "clicked",
                     G_CALLBACK (single_clicked),
                     NULL);
-    //gtk_widget_set_name(butSingle, "startButton");
+    gtk_style_context_add_class(
+        gtk_widget_get_style_context(GTK_WIDGET(butSingle)), "circular");
+    gtk_widget_set_name(butSingle, "mybutt");
+
+    notchSetdata = gtk_check_button_new_with_label("Set DATA");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(notchSetdata), FALSE);
+
                    
     mainGrid = gtk_grid_new ();
     gtk_grid_set_row_spacing (GTK_GRID (mainGrid), 5);
-    // Control title in (1,0) is 1 column large & 1 row high
-    gtk_grid_attach (GTK_GRID (mainGrid), controlTitle_label, 1, 0, 1, 1);
+    gtk_grid_set_column_spacing (GTK_GRID (mainGrid), 20);
+    // Control title in (0,0) is 3 column large & 1 row high
+    gtk_grid_attach (GTK_GRID (mainGrid), controlTitle_label, 0, 0, 3, 1);
     // Freq. title in (0,1) is 1 column large & 1 row high
     gtk_grid_attach (GTK_GRID (mainGrid), fTitle_label, 0, 1, 1, 1);
     // Freq. value in (1,1) is 1 column large & 1 row high
@@ -575,8 +601,11 @@ void *ui_thread(void *arg)
     // Start button in (0,2) is 2 column large & 2 row high
     gtk_grid_attach (GTK_GRID (mainGrid), butSingle, 0, 2, 2, 2);
    
-    // Measurement title in (1,4) is 1 columns large & 1 row high
-    gtk_grid_attach (GTK_GRID (mainGrid), measurTitle_label, 1, 4, 1, 1);
+    // SetDATA notch in (3,2) is 2 column large & 2 row high
+    gtk_grid_attach (GTK_GRID (mainGrid), notchSetdata, 2, 2, 2, 1);
+   
+    // Measurement title in (0,4) is 3 columns large & 1 row high
+    gtk_grid_attach (GTK_GRID (mainGrid), measurTitle_label, 0, 4, 3, 1);
     // State label in (0,5) is 2 column large & 1 row high
     gtk_grid_attach (GTK_GRID (mainGrid), state_label, 0, 5, 2, 1);
     // State value in (2,5) is 2 column large & 1 row high
@@ -675,11 +704,12 @@ void exit_fct(int signum)
     exit(signum);
 }
  
-void *virtual_tty_thread(void *arg)
+void *vitural_tty_thread(void *arg)
 {
     int read0, read1;
     int32_t wsize;
     int nb2copy = 0;
+    char cmdmsg[20];
 
     // open tty0
     if (copro_openTtyRpmsg(0, 1)) {
@@ -698,6 +728,10 @@ void *virtual_tty_thread(void *arg)
     }
     // needed to allow M4 to send any data over virtualTTY
     copro_writeTtyRpmsg(1, 1, "r");
+
+    usleep(500000);
+    sprintf(cmdmsg, "B%02d", NB_BUF);
+    copro_writeTtyRpmsg(0, strlen(cmdmsg), cmdmsg);
  
     while (1) {
         if (mThreadCancel) break;    // kill thread requested
@@ -745,11 +779,42 @@ void *virtual_tty_thread(void *arg)
  
 void *sdb_thread(void *arg)
 {
-    int ret, rc;
+    int ret, rc, i;
     int buffIdx = 0;
     char buf[16];
     rpmsg_sdb_ioctl_get_data_size q_get_data_size;
+    char *filename = "/dev/rpmsg-sdb";
+    rpmsg_sdb_ioctl_set_efd q_set_efd;
  
+    mFdSdbRpmsg = open(filename, O_RDWR);
+    assert(mFdSdbRpmsg != -1);
+    for (i=0;i<NB_BUF;i++){
+        // Create the evenfd, and sent it to kernel driver, for notification of buffer full
+        efd[i] = eventfd(0, 0);
+        if (efd[i] == -1)
+            error(EXIT_FAILURE, errno,
+                "failed to get eventfd");
+        printf("\nCA7 : Forward efd info for buf%d with mFdSdbRpmsg:%d and efd:%d\n",i,mFdSdbRpmsg,efd[i]);
+        q_set_efd.bufferId = i;
+        q_set_efd.eventfd = efd[i];
+        if(ioctl(mFdSdbRpmsg, RPMSG_SDB_IOCTL_SET_EFD, &q_set_efd) < 0)
+            error(EXIT_FAILURE, errno,
+                "failed to set efd");
+        // watch eventfd for input
+        fds[i].fd = efd[i];
+        fds[i].events = POLLIN;
+        mmappedData[i] = mmap(NULL,
+                                DATA_BUF_POOL_SIZE,
+                                PROT_READ | PROT_WRITE,
+                                MAP_PRIVATE,
+                                mFdSdbRpmsg,
+                                0);
+        printf("\nCA7 : DBG mmappedData[%d]:%p\n", i, mmappedData[i]);
+        assert(mmappedData[i] != MAP_FAILED);
+        fMappedData = 1;
+        sleep_ms(50);
+    }
+
     while (1) {
         if (mMachineState == STATE_SAMPLING) {
             // wait till at least one buffer becomes available
@@ -795,7 +860,7 @@ void *sdb_thread(void *arg)
                     printf("CA7 : sdb_thread => buf[%d] is empty\n", mDdrBuffAwaited);
                 }
                 mDdrBuffAwaited++;
-                if (mDdrBuffAwaited > 2) {
+                if (mDdrBuffAwaited >= NB_BUF) {
                     mDdrBuffAwaited = 0;
                 }
             } else {
@@ -810,8 +875,6 @@ void *sdb_thread(void *arg)
 int main(int argc, char **argv)
 {
     int ret = 0, i, cmd;
-    char *filename = "/dev/rpmsg-sdb";
-    rpmsg_sdb_ioctl_set_efd q_set_efd;
     char FwName[30];
     strcpy(FIRM_NAME, "how2eldb04140.elf");
     /* check if copro is already running */
@@ -855,48 +918,21 @@ fwrunning:
     signal(SIGTERM, exit_fct); /* kill command */
     gettimeofday(&tval_before, NULL);    // get current time
    
-    if (pthread_create( &threadTTY, NULL, virtual_tty_thread, NULL) != 0) {
-        printf("CA7 : virtual_tty_thread creation fails\n");
+    if (pthread_create( &threadTTY, NULL, vitural_tty_thread, NULL) != 0) {
+        printf("CA7 : vitural_tty_thread creation fails\n");
         goto end;
     }
    
+    sleep_ms(500);  // let tty send the DDR buffer command
     if (pthread_create( &threadSDB, NULL, sdb_thread, NULL) != 0) {
         printf("CA7 : sdb_thread creation fails\n");
         goto end;
     }
  
 /****** new production way => use rpmsg-sdb driver to perform CMA buff allocation ******/
-    size_t filesize = DATA_BUF_POOL_SIZE;
-    printf("CA7 : DBG filesize:%d\n",filesize);
+    //printf("CA7 : DBG filesize:%d\n",filesize);
  
     //Open file
-    mFdSdbRpmsg = open(filename, O_RDWR);
-    assert(mFdSdbRpmsg != -1);
-    for (i=0;i<NB_BUF;i++){
-        // Create the evenfd, and sent it to kernel driver, for notification of buffer full
-        efd[i] = eventfd(0, 0);
-        if (efd[i] == -1)
-            error(EXIT_FAILURE, errno,
-                "failed to get eventfd");
-        printf("\nCA7 : Forward efd info for buf%d via cmd:%d with mFdSdbRpmsg:%d and efd:%d\n",i,cmd,mFdSdbRpmsg,efd[i]);
-        q_set_efd.bufferId = i;
-        q_set_efd.eventfd = efd[i];
-        if(ioctl(mFdSdbRpmsg, RPMSG_SDB_IOCTL_SET_EFD, &q_set_efd) < 0)
-            error(EXIT_FAILURE, errno,
-                "failed to set efd");
-        // watch eventfd for input
-        fds[i].fd = efd[i];
-        fds[i].events = POLLIN;
-        mmappedData[i] = mmap(NULL,
-                                filesize,
-                                PROT_READ | PROT_WRITE,
-                                MAP_PRIVATE,
-                                mFdSdbRpmsg,
-                                0);
-        printf("\nCA7 : DBG mmappedData[%d]:%p\n", i, mmappedData[i]);
-        assert(mmappedData[i] != MAP_FAILED);
-        fMappedData = 1;
-    }
  
     mMachineState = STATE_READY;
     mSampFreq_Hz = 4;
@@ -928,7 +964,7 @@ fwrunning:
         sleep_ms(1);      // give time to UI
     }
     for (i=0;i<NB_BUF;i++){
-        int rc = munmap(mmappedData[i], filesize);
+        int rc = munmap(mmappedData[i], DATA_BUF_POOL_SIZE);
         assert(rc == 0);
     }
     fMappedData = 0;
