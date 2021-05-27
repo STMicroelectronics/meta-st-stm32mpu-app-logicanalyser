@@ -483,9 +483,6 @@ void *ui_thread(void *arg)
 {
    
     GtkWidget *mainGrid;
-    //GtkStyleContext *head_context;
-    //GtkStyleContext *val_context;
-    //GtkStyleContext *but_context;
     char tmpStr[100];
    
     time_t t = time(NULL);
@@ -704,7 +701,7 @@ void exit_fct(int signum)
     exit(signum);
 }
  
-void *vitural_tty_thread(void *arg)
+void *virtual_tty_thread(void *arg)
 {
     int read0, read1;
     int32_t wsize;
@@ -758,6 +755,11 @@ void *vitural_tty_thread(void *arg)
         read1 = copro_readTtyRpmsg(1, 512, mRxTraceBuffer);
         mRxTraceBuffer[read1] = 0;  // to be sure to get a end of string
         if (read1 > 0) {
+            if (strcmp(mRxTraceBuffer, "CM4 : DMA TransferError") == 0) {
+                // sampling is aborted, refresh the UI
+                mMachineState = STATE_READY;
+                gdk_threads_add_idle (refreshUI_CB, window);
+            }
             gettimeofday(&tval_after, NULL);
             timersub(&tval_after, &tval_before, &tval_result);
             if (mRxTraceBuffer[0] == 'C') {
@@ -779,9 +781,10 @@ void *vitural_tty_thread(void *arg)
  
 void *sdb_thread(void *arg)
 {
-    int ret, rc, i;
+    int ret, rc, i, n;
     int buffIdx = 0;
     char buf[16];
+    char dbgmsg[80];
     rpmsg_sdb_ioctl_get_data_size q_get_data_size;
     char *filename = "/dev/rpmsg-sdb";
     rpmsg_sdb_ioctl_set_efd q_set_efd;
@@ -832,8 +835,8 @@ void *sdb_thread(void *arg)
                     printf("CA7 : stdin closed\n");
                     return 0;
                 }
-                printf("CA7 : Parent read %lu (0x%lx) (%s) from efd[%d]\n",
-                        (unsigned long) buf, (unsigned long) buf, buf, mDdrBuffAwaited);
+                printf("CA7 : Parent read %lu (0x%lx) from efd[%d]\n",
+                        (unsigned long) buf, (unsigned long) buf, mDdrBuffAwaited);
                 /* Get buffer data size*/
                 q_get_data_size.bufferId = mDdrBuffAwaited;
  
@@ -851,8 +854,8 @@ void *sdb_thread(void *arg)
                     }
                     gettimeofday(&tval_after, NULL);
                     timersub(&tval_after, &tval_before, &tval_result);
-                        printf("[%ld.%06ld] sdb_thread data EVENT buffIdx=%d mNbCompData=%u mNbUncompData=%u \n", 
-                            (long int)tval_result.tv_sec, (long int)tval_result.tv_usec, buffIdx, 
+                        printf("[%ld.%06ld] sdb_thread data EVENT mDdrBuffAwaited=%d mNbCompData=%u mNbUncompData=%u \n", 
+                            (long int)tval_result.tv_sec, (long int)tval_result.tv_usec, mDdrBuffAwaited, 
                             mNbCompData, mNbUncompData);
                     gdk_threads_add_idle (refreshUI_CB, window);
                 }
@@ -864,7 +867,13 @@ void *sdb_thread(void *arg)
                     mDdrBuffAwaited = 0;
                 }
             } else {
-                printf("CA7 : sdb_thread wrong buffer index ERROR, waiting buffIdx=%d", buffIdx);
+                n = 0;
+                for (i=0; i<NB_BUF; i++) {
+                    n += sprintf(dbgmsg+n, "[%d] ", (fds[mDdrBuffAwaited].revents & POLLIN));
+                }
+                printf("CA7 : sdb_thread wrong buffer index ERROR, waiting mDdrBuffAwaited=%d buff status=%s", 
+                    mDdrBuffAwaited, dbgmsg);
+                mErrorDetected = 1;
             }
         }
         sleep_ms(5);      // give time to UI
@@ -918,8 +927,8 @@ fwrunning:
     signal(SIGTERM, exit_fct); /* kill command */
     gettimeofday(&tval_before, NULL);    // get current time
    
-    if (pthread_create( &threadTTY, NULL, vitural_tty_thread, NULL) != 0) {
-        printf("CA7 : vitural_tty_thread creation fails\n");
+    if (pthread_create( &threadTTY, NULL, virtual_tty_thread, NULL) != 0) {
+        printf("CA7 : virtual_tty_thread creation fails\n");
         goto end;
     }
    
@@ -930,9 +939,6 @@ fwrunning:
     }
  
 /****** new production way => use rpmsg-sdb driver to perform CMA buff allocation ******/
-    //printf("CA7 : DBG filesize:%d\n",filesize);
- 
-    //Open file
  
     mMachineState = STATE_READY;
     mSampFreq_Hz = 4;
