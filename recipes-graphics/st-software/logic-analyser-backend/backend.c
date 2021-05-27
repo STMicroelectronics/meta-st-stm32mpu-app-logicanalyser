@@ -101,10 +101,11 @@ struct timeval tval_before, tval_after, tval_result;
  
 typedef enum {
   STATE_READY = 0,
-  STATE_SAMPLING,
+  STATE_SAMPLING_LOW,
+  STATE_SAMPLING_HIGH,
 } machine_state_t;
  
-static char machine_state_str[5][13] = {"READY", "SAMPLING"};
+static char machine_state_str[5][13] = {"READY", "SAMPLING_LOW", "SAMPLING_HIGH"};
 static char SELECTED[10] = {" selected"};
 static char NOT_SELECTED[10] = {""};
 static char freq_unit_str[3][4] = {"MHz", "kHz", "Hz"};
@@ -413,7 +414,7 @@ static gboolean refreshUI_CB (gpointer data)
 {
     char tmpStr[200];
  
-    if (mMachineState == STATE_SAMPLING) {
+    if (mMachineState >= STATE_SAMPLING_LOW) {
         gtk_button_set_label (GTK_BUTTON (butSingle), "Stop");
     } else {
         gtk_button_set_label (GTK_BUTTON (butSingle), "Start");
@@ -438,7 +439,11 @@ static void single_clicked (GtkWidget *widget, gpointer data)
 {
     char setData = 'n';
     if (mMachineState == STATE_READY) {
-        mMachineState = STATE_SAMPLING;        // needed to force Html refresh => TODO clean this
+        if (mSampFreq_Hz > 5) {
+            mMachineState = STATE_SAMPLING_HIGH;
+        } else {
+            mMachineState = STATE_SAMPLING_LOW;
+        }
         mNbCompData=0;
         mNbUncompData=0;
         mNbPrevUncompMB = 0;
@@ -454,7 +459,7 @@ static void single_clicked (GtkWidget *widget, gpointer data)
         printf("CA7 : Start sampling at %dMHz\n", mSampFreq_Hz);
         virtual_tty_send_command(strlen(mSamplingStr), mSamplingStr);
         gdk_threads_add_idle (refreshUI_CB, window);
-    } else if (mMachineState == STATE_SAMPLING) {
+    } else if (mMachineState >= STATE_SAMPLING_LOW) {
         mMachineState = STATE_READY;
         printf("CA7 : Stop sampling\n");
         virtual_tty_send_command(strlen("Exit"), "Exit");
@@ -470,7 +475,7 @@ static void f_scale_moved (GtkRange *range, gpointer user_data)
    GtkWidget *label = user_data;
  
    gdouble pos = gtk_range_get_value (range);
-   gdouble val = 1 + 9 * pos / 100;
+   gdouble val = 1 + 8 * pos / 100;
    gchar *str = g_strdup_printf ("%.0f", val);
    mSampFreq_Hz = atoi(str);
    gtk_label_set_text (GTK_LABEL (label), str);
@@ -757,8 +762,9 @@ void *virtual_tty_thread(void *arg)
         if (read1 > 0) {
             if (strcmp(mRxTraceBuffer, "CM4 : DMA TransferError") == 0) {
                 // sampling is aborted, refresh the UI
-                mMachineState = STATE_READY;
-                gdk_threads_add_idle (refreshUI_CB, window);
+                mErrorDetected = 1;
+                //mMachineState = STATE_READY;
+                //gdk_threads_add_idle (refreshUI_CB, window);
             }
             gettimeofday(&tval_after, NULL);
             timersub(&tval_after, &tval_before, &tval_result);
@@ -819,7 +825,7 @@ void *sdb_thread(void *arg)
     }
 
     while (1) {
-        if (mMachineState == STATE_SAMPLING) {
+        if (mMachineState == STATE_SAMPLING_HIGH) {
             // wait till at least one buffer becomes available
             ret = poll(fds, NB_BUF, TIMEOUT * 1000);
             if (ret == -1)
@@ -867,13 +873,16 @@ void *sdb_thread(void *arg)
                     mDdrBuffAwaited = 0;
                 }
             } else {
-                n = 0;
-                for (i=0; i<NB_BUF; i++) {
-                    n += sprintf(dbgmsg+n, "[%d] ", (fds[mDdrBuffAwaited].revents & POLLIN));
+                // we may have started the timeout, but have stopped and started sampling in RPMSG
+                if (mMachineState == STATE_SAMPLING_HIGH) {
+                    n = 0;
+                    for (i=0; i<NB_BUF; i++) {
+                        n += sprintf(dbgmsg+n, "[%d] ", (fds[mDdrBuffAwaited].revents & POLLIN));
+                    }
+                    printf("CA7 : sdb_thread wrong buffer index ERROR, waiting idx=%d buff status=%s\n", 
+                        mDdrBuffAwaited, dbgmsg);
+                    mErrorDetected = 2;
                 }
-                printf("CA7 : sdb_thread wrong buffer index ERROR, waiting mDdrBuffAwaited=%d buff status=%s", 
-                    mDdrBuffAwaited, dbgmsg);
-                mErrorDetected = 1;
             }
         }
         sleep_ms(5);      // give time to UI
@@ -956,12 +965,14 @@ fwrunning:
     while (1) {
         if (mExitRequested) break;
         if (mErrorDetected) {
-            if (mMachineState == STATE_SAMPLING) {
-            virtual_tty_send_command(strlen("Exit"), "Exit");
-            if (mErrorDetected == 1) printf("CA7 : ERROR in DDR Buffer order => Stop sampling!!!\n");
-            else if (mErrorDetected == 2) printf("CA7 : File System full => Stop sampling!!!\n");
-            mErrorDetected = 0;
-            mMachineState = STATE_READY;
+            if (mMachineState >= STATE_SAMPLING_LOW) {
+                virtual_tty_send_command(strlen("Exit"), "Exit");
+                if (mErrorDetected == 2) printf("CA7 : ERROR in DDR Buffer order => Stop sampling!!!\n");
+                //else if (mErrorDetected == 2) printf("CA7 : File System full => Stop sampling!!!\n");
+                else if (mErrorDetected == 1) printf("CA7 : M4 reported DMA error !!!\n");
+                mErrorDetected = 0;
+                mMachineState = STATE_READY;
+                gdk_threads_add_idle (refreshUI_CB, window);
 #if 0
             close_raw_file();
 #endif
