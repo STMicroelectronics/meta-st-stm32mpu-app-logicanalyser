@@ -394,7 +394,7 @@ static int rpmsg_sdb_drv_cb(struct rpmsg_device *rpdev, void *data, int len,
 	int ret = 0;
 	int buffer_id = 0;
 	size_t buffer_size;
-	char rpmsg_RxBuf[len+1];
+	char *rpmsg_RxBuf;
 	struct list_head *pos;
 	struct sdb_buf_t *datastructureptr = NULL;
 
@@ -407,11 +407,13 @@ static int rpmsg_sdb_drv_cb(struct rpmsg_device *rpdev, void *data, int len,
 
     //dev_err(rpmsg_sdb_dev, "(%s) lenght: %d\n", __func__,len);
 
+    rpmsg_RxBuf = (char *)kmalloc(len+1, GFP_KERNEL);
 	memcpy(rpmsg_RxBuf, data, len);
 
     rpmsg_RxBuf[len] = 0;
 
 	ret = rpmsg_sdb_decode_rxbuf_string(rpmsg_RxBuf, &buffer_id, &buffer_size);
+    kfree(rpmsg_RxBuf);
 	if (ret < 0)
 		goto out;
 
