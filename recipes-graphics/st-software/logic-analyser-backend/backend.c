@@ -130,7 +130,7 @@ static int32_t mSampFreq_Hz = 4;
 static machine_state_t mMachineState;
 static int32_t mSampParmCount;
 static uint8_t mExitRequested = 0, mErrorDetected = 0;
-static uint32_t mNbCompData=0, mNbUncompData=0, mNbWrittenInFileData;
+static uint32_t mNbUncompData=0, mNbWrittenInFileData;
 static uint32_t mNbUncompMB=0, mNbPrevUncompMB=0, mNbTty0Frame=0;
 static uint8_t mDdrBuffAwaited;
 static uint8_t mThreadCancel = 0;
@@ -420,9 +420,7 @@ static gboolean refreshUI_CB (gpointer data)
         gtk_button_set_label (GTK_BUTTON (butSingle), "Start");
     }
     gtk_label_set_text (GTK_LABEL (state_value), machine_state_str[mMachineState]);
-    sprintf(tmpStr, "%u", mNbCompData);
-    gtk_label_set_text (GTK_LABEL (nbCompData_value), tmpStr);
-    sprintf(tmpStr, "%u", mNbUncompData);
+    sprintf(tmpStr, "%uMB : %u", mNbUncompMB, mNbUncompData);
     gtk_label_set_text (GTK_LABEL (nbRealData_value), tmpStr);
     sprintf(tmpStr, "%u", mNbTty0Frame);
     gtk_label_set_text (GTK_LABEL (nbRpmsgFrame_value), tmpStr);
@@ -444,7 +442,6 @@ static void single_clicked (GtkWidget *widget, gpointer data)
         } else {
             mMachineState = STATE_SAMPLING_LOW;
         }
-        mNbCompData=0;
         mNbUncompData=0;
         mNbPrevUncompMB = 0;
         mNbUncompMB = 0;
@@ -475,7 +472,7 @@ static void f_scale_moved (GtkRange *range, gpointer user_data)
    GtkWidget *label = user_data;
  
    gdouble pos = gtk_range_get_value (range);
-   gdouble val = 1 + 8 * pos / 100;
+   gdouble val = 1 + 11 * pos / 100;
    gchar *str = g_strdup_printf ("%.0f", val);
    mSampFreq_Hz = atoi(str);
    gtk_label_set_text (GTK_LABEL (label), str);
@@ -537,14 +534,7 @@ void *ui_thread(void *arg)
     gtk_label_set_xalign (GTK_LABEL (state_value), 0);
     gtk_widget_set_name(state_value, "value");
    
-    nbCompData_label = gtk_label_new ("Nb of compressed data :");
-    gtk_label_set_xalign (GTK_LABEL (nbCompData_label), 0);
-    gtk_widget_set_name(nbCompData_label, "header");
-    nbCompData_value = gtk_label_new ("");
-    gtk_label_set_xalign (GTK_LABEL (nbCompData_value), 0);
-    gtk_widget_set_name(nbCompData_value, "value");
-
-    nbRealData_label = gtk_label_new ("Nb of uncompressed data :");
+    nbRealData_label = gtk_label_new ("Nb of received data :");
     gtk_label_set_xalign (GTK_LABEL (nbRealData_label), 0);
     gtk_widget_set_name(nbRealData_label, "header");
     nbRealData_value = gtk_label_new ("");
@@ -568,7 +558,7 @@ void *ui_thread(void *arg)
     gtk_widget_set_name(data_value, "value");
    
     gtk_label_set_text (GTK_LABEL (state_value), machine_state_str[mMachineState]);
-    sprintf(tmpStr, "%u", mNbCompData);
+    sprintf(tmpStr, "%u", mNbUncompData);
     gtk_label_set_text (GTK_LABEL (nbCompData_value), tmpStr);
     sprintf(tmpStr, "%u", mNbUncompData);
     gtk_label_set_text (GTK_LABEL (nbRealData_value), tmpStr);
@@ -612,27 +602,22 @@ void *ui_thread(void *arg)
     gtk_grid_attach (GTK_GRID (mainGrid), state_label, 0, 5, 2, 1);
     // State value in (2,5) is 2 column large & 1 row high
     gtk_grid_attach (GTK_GRID (mainGrid), state_value, 2, 5, 2, 1);
-   
-    // Comp data label in (0,6) is 2 column large & 1 row high
-    gtk_grid_attach (GTK_GRID (mainGrid), nbCompData_label, 0, 6, 2, 1);
-    // Comp data value in (2,6) is 2 column large & 1 row high
-    gtk_grid_attach (GTK_GRID (mainGrid), nbCompData_value, 2, 6, 2, 1);
 
     // Real data label in (0,7) is 2 column large & 1 row high
-    gtk_grid_attach (GTK_GRID (mainGrid), nbRealData_label, 0, 7, 2, 1);
+    gtk_grid_attach (GTK_GRID (mainGrid), nbRealData_label, 0, 6, 2, 1);
     // Real data value in (2,7) is 2 column large & 1 row high
-    gtk_grid_attach (GTK_GRID (mainGrid), nbRealData_value, 2, 7, 2, 1);
+    gtk_grid_attach (GTK_GRID (mainGrid), nbRealData_value, 2, 6, 2, 1);
 
     // Nb of RPMSG frame label in (0,8) is 2 column large & 1 row high
-    gtk_grid_attach (GTK_GRID (mainGrid), nbRpmsgFrame_label, 0, 8, 2, 1);
+    gtk_grid_attach (GTK_GRID (mainGrid), nbRpmsgFrame_label, 0, 7, 2, 1);
     // Nb of RPMSG frame value in (2,8) is 2 column large & 1 row high
-    gtk_grid_attach (GTK_GRID (mainGrid), nbRpmsgFrame_value, 2, 8, 2, 1);
+    gtk_grid_attach (GTK_GRID (mainGrid), nbRpmsgFrame_value, 2, 7, 2, 1);
 
    
     // Data label in (0,9) is 2 column large & 1 row high
-    gtk_grid_attach (GTK_GRID (mainGrid), data_label, 0, 9, 2, 1);
+    gtk_grid_attach (GTK_GRID (mainGrid), data_label, 0, 8, 2, 1);
     // File name value in (2,9) is 2 column large & 1 row high
-    gtk_grid_attach (GTK_GRID (mainGrid), data_value, 2, 9, 2, 1);
+    gtk_grid_attach (GTK_GRID (mainGrid), data_value, 2, 8, 2, 1);
 
     gtk_grid_set_row_homogeneous (GTK_GRID (mainGrid), TRUE);
    
@@ -742,12 +727,9 @@ void *virtual_tty_thread(void *arg)
         read0 = copro_readTtyRpmsg(0, SAMP_SRAM_PACKET_SIZE, mByteBuffer);
         if (read0 > 0) {
             mNbTty0Frame++;
-            mNbCompData += read0;
-            for (int i=0; i<read0; i++) {
-                mNbUncompData += (1 + (mByteBuffer[i] >> 7));
-            }
+            mNbUncompData += read0;
 
-            mNbUncompMB = mNbCompData / 1024 / 1024;
+            mNbUncompMB = mNbUncompData / 1024 / 1024;
             if (mNbUncompMB != mNbPrevUncompMB) {
                 // a new MB has been received, update display
                 mNbPrevUncompMB = mNbUncompMB;
@@ -830,8 +812,6 @@ void *sdb_thread(void *arg)
             ret = poll(fds, NB_BUF, TIMEOUT * 1000);
             if (ret == -1)
                 perror("poll()");
-            else if (ret)
-                printf("CA7 : Data buffer is available now.\n");
             else if (ret == 0){
                 printf("CA7 : No buffer data within %d seconds.\n", TIMEOUT);
             }
@@ -841,8 +821,6 @@ void *sdb_thread(void *arg)
                     printf("CA7 : stdin closed\n");
                     return 0;
                 }
-                printf("CA7 : Parent read %lu (0x%lx) from efd[%d]\n",
-                        (unsigned long) buf, (unsigned long) buf, mDdrBuffAwaited);
                 /* Get buffer data size*/
                 q_get_data_size.bufferId = mDdrBuffAwaited;
  
@@ -851,18 +829,16 @@ void *sdb_thread(void *arg)
                 }
  
                 if (q_get_data_size.size) {
-                    mNbCompData += q_get_data_size.size;
-                    unsigned char* pCompData = (unsigned char*)mmappedData[mDdrBuffAwaited];
+                    mNbUncompMB++;
+                    mNbUncompData += q_get_data_size.size;
+                    unsigned char* pData = (unsigned char*)mmappedData[mDdrBuffAwaited];
                     // save a copy of 1st data
-                    mByteBuffCpy[0] = *pCompData;
-                    for (int i=0; i<q_get_data_size.size; i++) {
-                        mNbUncompData += (1 + (*(pCompData+i) >> 7));
-                    }
+                    mByteBuffCpy[0] = *pData;
                     gettimeofday(&tval_after, NULL);
                     timersub(&tval_after, &tval_before, &tval_result);
-                        printf("[%ld.%06ld] sdb_thread data EVENT mDdrBuffAwaited=%d mNbCompData=%u mNbUncompData=%u \n", 
+                        printf("[%ld.%06ld] sdb_thread data EVENT mDdrBuffAwaited=%d mNbUncompData=%u \n", 
                             (long int)tval_result.tv_sec, (long int)tval_result.tv_usec, mDdrBuffAwaited, 
-                            mNbCompData, mNbUncompData);
+                            mNbUncompData);
                     gdk_threads_add_idle (refreshUI_CB, window);
                 }
                 else {
@@ -873,15 +849,57 @@ void *sdb_thread(void *arg)
                     mDdrBuffAwaited = 0;
                 }
             } else {
-                // we may have started the timeout, but have stopped and started sampling in RPMSG
-                if (mMachineState == STATE_SAMPLING_HIGH) {
-                    n = 0;
-                    for (i=0; i<NB_BUF; i++) {
-                        n += sprintf(dbgmsg+n, "[%d] ", (fds[mDdrBuffAwaited].revents & POLLIN));
+                // we face message lost due to SDB driver not managing RPMSG DATA containing several messages
+                // in this case, just treat several message
+                mDdrBuffAwaited++;
+                if (mDdrBuffAwaited >= NB_BUF) {
+                    mDdrBuffAwaited = 0;
+                }
+                if (fds[mDdrBuffAwaited].revents & POLLIN) {
+                    rc = read(efd[mDdrBuffAwaited], buf, 16);
+                    if (!rc) {
+                        printf("CA7 : stdin closed\n");
+                        return 0;
                     }
-                    printf("CA7 : sdb_thread wrong buffer index ERROR, waiting idx=%d buff status=%s\n", 
-                        mDdrBuffAwaited, dbgmsg);
-                    mErrorDetected = 2;
+                    /* Get buffer data size*/
+                    q_get_data_size.bufferId = mDdrBuffAwaited;
+     
+                    if(ioctl(mFdSdbRpmsg, RPMSG_SDB_IOCTL_GET_DATA_SIZE, &q_get_data_size) < 0) {
+                        error(EXIT_FAILURE, errno, "Failed to get data size");
+                    }
+     
+                    if (q_get_data_size.size) {
+                        mNbUncompMB += 2;
+                        mNbUncompData += q_get_data_size.size;
+                        mNbUncompData += q_get_data_size.size;    // need twice as we missed one
+                        unsigned char* pData = (unsigned char*)mmappedData[mDdrBuffAwaited];
+                        // save a copy of 1st data
+                        mByteBuffCpy[0] = *pData;
+                        gettimeofday(&tval_after, NULL);
+                        timersub(&tval_after, &tval_before, &tval_result);
+                            printf("[%ld.%06ld] sdb_thread data EVENT mDdrBuffAwaited=%d mNbUncompData=%u \n", 
+                                (long int)tval_result.tv_sec, (long int)tval_result.tv_usec, mDdrBuffAwaited, 
+                                mNbUncompData);
+                        gdk_threads_add_idle (refreshUI_CB, window);
+                    }
+                    else {
+                        printf("CA7 : sdb_thread => buf[%d] is empty\n", mDdrBuffAwaited);
+                    }
+                    mDdrBuffAwaited++;
+                    if (mDdrBuffAwaited >= NB_BUF) {
+                        mDdrBuffAwaited = 0;
+                    }
+                } else {
+                    // we may have started the timeout, but have stopped and started sampling in RPMSG
+                    if (mMachineState == STATE_SAMPLING_HIGH) {
+                        n = 0;
+                        for (i=0; i<NB_BUF; i++) {
+                            n += sprintf(dbgmsg+n, "[%d] ", (fds[i].revents & POLLIN));
+                        }
+                        printf("CA7 : sdb_thread wrong buffer index ERROR, waiting idx=%d buff status=%s\n", 
+                            mDdrBuffAwaited, dbgmsg);
+                        mErrorDetected = 2;
+                    }
                 }
             }
         }
