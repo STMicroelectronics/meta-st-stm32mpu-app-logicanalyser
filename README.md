@@ -1,5 +1,5 @@
 # meta-st-stm32mpu-app-logicanalyser
-This layer is used to bring the logic analyzer demonstration (see details in https://wiki.st.com/stm32mpu/wiki/How_to_exchange_large_data_buffers_with_the_coprocessor_-_example) on top of STM32MP1 MMDV-3.0.0.
+This layer is used to bring the logic analyzer demonstration (see details in https://wiki.st.com/stm32mpu/wiki/How_to_exchange_large_data_buffers_with_the_coprocessor_-_example) on top of STM32MP1 MMDV-3.1.0.
 
 This layer is linked with the https://github.com/STMicroelectronics/logicanalyser project (STM32MP157 Cortex-M4 firmware for the logic analyzer demonstration).
 
