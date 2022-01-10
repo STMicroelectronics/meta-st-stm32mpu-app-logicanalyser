@@ -149,7 +149,7 @@ static int rpmsg_sdb_mmap(struct file *file, struct vm_area_struct *vma)
 	unsigned long size = PAGE_ALIGN(vsize);
 	unsigned long NumPages = size >> PAGE_SHIFT;
 	unsigned long align = get_order(size);
-	pgprot_t prot = vma->vm_page_prot;
+	pgprot_t prot = pgprot_noncached(vma->vm_page_prot);
 	struct rpmsg_sdb_t *_rpmsg_sdb;
 	struct sdb_buf_t *_buffer;
 
@@ -173,7 +173,7 @@ static int rpmsg_sdb_mmap(struct file *file, struct vm_area_struct *vma)
 		_buffer->uaddr = NULL;
 		_buffer->size = NumPages * PAGE_SIZE;
 		_buffer->writing_size = -1;
-		_buffer->vaddr = dma_alloc_wc(rpmsg_sdb_dev,
+		_buffer->vaddr = dma_alloc_coherent(rpmsg_sdb_dev,
 							_buffer->size,
 							&_buffer->paddr,
 							GFP_KERNEL);
@@ -183,7 +183,7 @@ static int rpmsg_sdb_mmap(struct file *file, struct vm_area_struct *vma)
 			return -ENOMEM;
 		}
 
-		pr_debug("rpmsg_sdb(%s): dma_alloc_wc done - paddr[%d]:%x - vaddr[%d]:%p\n",
+		pr_debug("rpmsg_sdb(%s): dma_alloc_coherent done - paddr[%d]:%x - vaddr[%d]:%p\n",
 					__func__,
 					_buffer->index,
 					_buffer->paddr,
@@ -262,7 +262,7 @@ static int rpmsg_sdb_close(struct inode *inode, struct file *file)
 					pos->vaddr,
 					pos->paddr);
 
-		dma_free_wc(rpmsg_sdb_dev, pos->size, pos->vaddr,
+		dma_free_coherent(rpmsg_sdb_dev, pos->size, pos->vaddr,
 					pos->paddr);
 		/* Remove the buffer from the list */
 		list_del(&pos->buflist);
