@@ -77,7 +77,8 @@ static long rpmsg_sdb_decode_rxbuf_string(char *rxbuf_str, int *buffer_id, size_
 	char *sub_str;
 	long bsize;
 	long bufid;
-	const char delimiter[1] = {'L'};
+	//const char delimiter[1] = {'L'};
+	const char delimiter[] = "L";
 
 	pr_debug("rpmsg_sdb(%s): rxbuf_str:%s\n", __func__, rxbuf_str);
 
