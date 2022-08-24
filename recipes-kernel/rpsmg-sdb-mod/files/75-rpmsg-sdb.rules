@@ -1,0 +1,1 @@
+SUBSYSTEM=="misc", KERNEL=="rpmsg-sdb", GROUP="dialout", MODE="0666"

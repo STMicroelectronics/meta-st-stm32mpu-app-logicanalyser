@@ -115,7 +115,7 @@ static int rpmsg_sdb_send_buf_info(struct rpmsg_sdb_t *rpmsg_sdb, struct sdb_buf
 	struct rpmsg_device *_rpdev;
 
 	_rpdev = rpmsg_sdb->rpdev;
-	msg_size = rpmsg_get_buffer_size(_rpdev->ept);
+	msg_size = rpmsg_get_mtu(_rpdev->ept);
 
 	if (msg_size < 0)
 		return msg_size;

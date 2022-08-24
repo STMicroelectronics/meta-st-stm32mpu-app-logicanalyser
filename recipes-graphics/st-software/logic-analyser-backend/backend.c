@@ -91,40 +91,38 @@ struct connection_info_struct
   char *answerstring;
   struct MHD_PostProcessor *postprocessor;
 };
- 
-//pthread_mutex_t ttyMutex;
- 
+
 struct MHD_Daemon *mHttpDaemon;
- 
+
 char FIRM_NAME[50];
 struct timeval tval_before, tval_after, tval_result;
- 
+
 typedef enum {
   STATE_READY = 0,
   STATE_SAMPLING_LOW,
   STATE_SAMPLING_HIGH,
 } machine_state_t;
- 
+
 static char machine_state_str[5][13] = {"READY", "SAMPLING_LOW", "SAMPLING_HIGH"};
 static char SELECTED[10] = {" selected"};
 static char NOT_SELECTED[10] = {""};
 static char freq_unit_str[3][4] = {"MHz", "kHz", "Hz"};
 static char FREQU[3] = {'M', 'k', 'H'};
- 
+
 /* The file descriptor used to manage our TTY over RPMSG */
 static int mFdRpmsg[2] = {-1, -1};
- 
+
 /* The file descriptor used to manage our SDB over RPMSG */
 static int mFdSdbRpmsg = -1;
- 
+
 static int virtual_tty_send_command(int len, char* commandStr);
- 
+
 static char mByteBuffer[512];
 static char mByteBuffCpy[512];
 static int mNbReadTty = 0;
 
 static char mRxTraceBuffer[512];
- 
+
 static char mSamplingStr[15];
 static int32_t mSampFreq_Hz = 4;
 static machine_state_t mMachineState;
@@ -134,21 +132,20 @@ static uint32_t mNbUncompData=0, mNbWrittenInFileData;
 static uint32_t mNbUncompMB=0, mNbPrevUncompMB=0, mNbTty0Frame=0;
 static uint8_t mDdrBuffAwaited;
 static uint8_t mThreadCancel = 0;
-//static    char tmpStr[80];
- 
+
 void* mmappedData[NB_BUF];
 static    int fMappedData = 0;
 FILE *pOutFile = NULL;
 static char mFileNameStr[150];
 static pthread_t threadTTY, threadSDB, threadUI;
- 
+
 static int efd[NB_BUF];
 static struct pollfd fds[NB_BUF];
- 
+
 static    GtkWidget *window;
 static    GtkWidget *f_scale;
 static    GtkAdjustment *fadjustment;
-   
+
 static    GtkWidget *controlTitle_label;
 static    GtkWidget *fTitle_label;
 static    GtkWidget *fValue_label;
@@ -166,7 +163,6 @@ static    GtkWidget *data_value;
 static    GtkWidget *butSingle;
 static    GtkWidget *notchSetdata;
 
-
 /********************************************************************************
 Copro functions allowing to manage a virtual TTY over RPMSG
 *********************************************************************************/
@@ -176,7 +172,13 @@ int copro_isFwRunning(void)
     size_t byte_read;
     int result = 0;
     unsigned char bufRead[MAX_BUF];
-    fd = open("/sys/class/remoteproc/remoteproc0/state", O_RDWR);
+    char *user  = getenv("USER");
+    if (user && strncmp(user, "root", 4)) {
+        system("XTERM=xterm su root -c 'cat /sys/class/remoteproc/remoteproc0/state' > /tmp/remoteproc0_state");
+        fd = open("/tmp/remoteproc0_state", O_RDONLY);
+    } else {
+        fd = open("/sys/class/remoteproc/remoteproc0/state", O_RDONLY);
+    }
     if (fd < 0) {
         printf("CA7 : Error opening remoteproc0/state, err=-%d\n", errno);
         return (errno * -1);
@@ -191,10 +193,15 @@ int copro_isFwRunning(void)
     close(fd);
     return result;
 }
- 
+
 int copro_stopFw(void)
 {
     int fd;
+    char *user  = getenv("USER");
+    if (user && strncmp(user, "root",4)) {
+        system("su root -c 'echo stop > /sys/class/remoteproc/remoteproc0/state'");
+        return 0;
+    }
     fd = open("/sys/class/remoteproc/remoteproc0/state", O_RDWR);
     if (fd < 0) {
         printf("CA7 : Error opening remoteproc0/state, err=-%d\n", errno);
@@ -208,6 +215,11 @@ int copro_stopFw(void)
 int copro_startFw(void)
 {
     int fd;
+    char *user  = getenv("USER");
+    if (user && strncmp(user, "root",4)) {
+        system("su root -c 'echo start > /sys/class/remoteproc/remoteproc0/state'");
+        return 0;
+    }
     fd = open("/sys/class/remoteproc/remoteproc0/state", O_RDWR);
     if (fd < 0) {
         printf("CA7 : Error opening remoteproc0/state, err=-%d\n", errno);
@@ -222,7 +234,13 @@ int copro_getFwPath(char* pathStr)
 {
     int fd;
     int byte_read;
-    fd = open("/sys/module/firmware_class/parameters/path", O_RDWR);
+    char *user  = getenv("USER");
+    if (user && strncmp(user, "root",4)) {
+        system("XTERM=xterm su root -c 'cat /sys/module/firmware_class/parameters/path' > /tmp/parameters_path");
+        fd = open("/tmp/parameters_path", O_RDONLY);
+    } else {
+        fd = open("/sys/module/firmware_class/parameters/path", O_RDONLY);
+    }
     if (fd < 0) {
         printf("CA7 : Error opening firmware_class/parameters/path, err=-%d\n", errno);
         return (errno * -1);
@@ -231,11 +249,18 @@ int copro_getFwPath(char* pathStr)
     close(fd);
     return byte_read;
 }
- 
+
 int copro_setFwPath(char* pathStr)
 {
     int fd;
     int result = 0;
+    char *user  = getenv("USER");
+    if (user && strncmp(user, "root",4)) {
+        char cmd[1024];
+        snprintf(cmd, 1024, "su root -c 'echo %s > /sys/module/firmware_class/parameters/path'", pathStr);
+        system(cmd);
+        return strlen(pathStr);
+    }
     fd = open("/sys/module/firmware_class/parameters/path", O_RDWR);
     if (fd < 0) {
         printf("CA7 : Error opening firmware_class/parameters/path, err=-%d\n", errno);
@@ -250,7 +275,13 @@ int copro_getFwName(char* pathStr)
 {
     int fd;
     int byte_read;
-    fd = open("/sys/class/remoteproc/remoteproc0/firmware", O_RDWR);
+    char *user  = getenv("USER");
+    if (user && strncmp(user, "root",4)) {
+        system("XTERM=xterm su root -c 'cat /sys/class/remoteproc/remoteproc0/firmware' > /tmp/remoteproc0_firmware");
+        fd = open("/tmp/remoteproc0_firmware", O_RDONLY);
+    } else {
+        fd = open("/sys/class/remoteproc/remoteproc0/firmware", O_RDWR);
+    }
     if (fd < 0) {
         printf("CA7 : Error opening remoteproc0/firmware, err=-%d\n", errno);
         return (errno * -1);
@@ -264,6 +295,13 @@ int copro_setFwName(char* nameStr)
 {
     int fd;
     int result = 0;
+    char *user  = getenv("USER");
+    if (user && strncmp(user, "root",4)) {
+        char cmd[1024];
+        snprintf(cmd, 1024, "su root -c 'echo %s > /sys/class/remoteproc/remoteproc0/firmware'", nameStr);
+        system(cmd);
+        return strlen(nameStr);
+    }
     fd = open("/sys/class/remoteproc/remoteproc0/firmware", O_RDWR);
     if (fd < 0) {
         printf("CA7 : Error opening remoteproc0/firmware, err=-%d\n", errno);
@@ -363,8 +401,7 @@ int copro_readTtyRpmsg(int ttyNb, int len, char* pData)
 /********************************************************************************
 End of Copro functions
 *********************************************************************************/
- 
- 
+
 void
 print_time() {
     struct timespec ts;
@@ -958,26 +995,26 @@ fwrunning:
         printf("CA7 : virtual_tty_thread creation fails\n");
         goto end;
     }
-   
+
     sleep_ms(500);  // let tty send the DDR buffer command
     if (pthread_create( &threadSDB, NULL, sdb_thread, NULL) != 0) {
         printf("CA7 : sdb_thread creation fails\n");
         goto end;
     }
- 
+
 /****** new production way => use rpmsg-sdb driver to perform CMA buff allocation ******/
  
     mMachineState = STATE_READY;
     mSampFreq_Hz = 4;
     mSampParmCount = 0;
-   
+
     gtk_init (&argc, &argv);
    
     if (pthread_create( &threadUI, NULL, ui_thread, NULL) != 0) {
         printf("CA7 : ui_thread creation fails\n");
         goto end;
     }
-   
+
     printf("CA7 : Entering in Main loop\n");
  
     while (1) {

@@ -1,6 +1,6 @@
 SUMMARY = "logicanalyser demo"
 HOMEPAGE = ""
-LICENSE = "GPLv2 & BSD-3-Clause"
+LICENSE = "GPL-2.0-only & BSD-3-Clause"
 LIC_FILES_CHKSUM = "file://${COREBASE}/meta/files/common-licenses/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
 DEPENDS = "gtk+3"
@@ -37,7 +37,7 @@ do_install() {
     install -m 0755 ${B}/backend/start_up_la.sh ${D}/usr/local/weston-start-at-startup/
 }
 
-FILES_${PN} += "/usr/local/demo/la/"
-FILES_${PN} += "/usr/local/demo/la/bin/"
-FILES_${PN} += "/usr/local/weston-start-at-startup/"
-FILES_${PN} += "/lib/firmware/"
+FILES:${PN} += "/usr/local/demo/la/"
+FILES:${PN} += "/usr/local/demo/la/bin/"
+FILES:${PN} += "/usr/local/weston-start-at-startup/"
+FILES:${PN} += "/lib/firmware/"

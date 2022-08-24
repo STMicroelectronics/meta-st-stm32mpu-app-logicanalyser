@@ -1,29 +1,48 @@
 #!/bin/sh
 
-# Assume that this script is being run from the root of the archive
-here=`pwd`
+#===============================================================================
+# run_la.sh
+#
+# This script gets the user associated with the weston application, and calls
+# the "logic analyzer" application accordingly.
+#
+# Author: Jean-Christophe Trotin <jean-christophe.trotin@st.com>
+# for STMicroelectronics.
+#
+# Copyright (c) 2022 STMicroelectronics. All rights reserved.
+#
+# Usage: ./run_la.sh
+#===============================================================================
 
-cd /usr/local/demo/la/bin
-BACK_END=/usr/local/demo/la/bin/backend
-
-gui_start() {
-    #Rotation
-    rot=0
-
-    ${BACK_END} &
-# To get traces in a file, replace the previous line by the following one:
-#    ${BACK_END} &> la_trace.txt &
+#
+# Function: get the weston user ("root" or "weston")
+#
+get_weston_user() {
+    ps aux | grep '/usr/bin/weston ' | grep -v 'grep' | awk '{print $1}'
 }
 
-gui_stop() {
-    killall backend
-}
+#
+# Main
+#
 
+# Get the user associated with the weston application: 
+weston_user=$(get_weston_user)
+echo "Weston user: " $weston_user
+
+# Build the command
+cmd="/usr/local/demo/la/bin/backend"
+echo "Command: " $cmd
+
+# Manage the "logic analyzer" application
 pidof backend >/dev/null
 if [[ $? -ne 0 ]] ; then
-    gui_start
+    if [ "$weston_user" != "root" ]; then
+        script -qc "su -l $weston_user -c '$cmd'" &
+    else
+        $cmd &
+    fi
 else
-    gui_stop
+    killall backend
+    # To get traces in a file (/tmp/start_la_typescript), comment the above line
+    rm /tmp/start_la_typescript
 fi
-
-exit 0
