@@ -7,7 +7,7 @@ This example can be executed on the **STM32MP135C/F-DK2 Discovery kit** boards.
 
 This layer is linked with the [**logicanalyser** project](https://github.com/STMicroelectronics/logicanalyser) that contains the source code of the STM32MP157 Cortex-M4 firmware for the logic analyzer example.
 
-This version is based on the [**STM32MP1-ecosystem-v4.1.0 ecosystem release**](https://wiki.st.com/stm32mpu/wiki/STM32_MPU_ecosystem_release_note_-_v4.1.0) of the STM32MPU Embedded Software distribution.
+This version is based on the [**STM32MP1-ecosystem-v5.0.1 ecosystem release**](https://wiki.st.com/stm32mpu/wiki/STM32_MPU_ecosystem_release_note_-_v5.0.0) of the STM32MPU Embedded Software distribution.
 
 The "mx machine" is not used: instead, a patch on the Linux device tree is provided.
 
@@ -37,11 +37,11 @@ The "mx machine" is not used: instead, a patch on the Linux device tree is provi
 ```
 PC $> cd <working_directory_path>
 ```
-- Fetch the **openstlinux-5.15-yocto-kirkstone-mp1-v22.11.23** OpenSTLinux version delivered with the STM32MP1-ecosystem-v4.1.0 release as explained [here](https://wiki.st.com/stm32mpu/wiki/STM32MP1_Distribution_Package).
-- Add the meta-st-stm32mpu-app-logicanalyser layer (**kirkstone** branch):
+- Fetch the **openstlinux-6.1-yocto-mickledore-mp1-v23.10.18** OpenSTLinux version delivered with the STM32MP1-ecosystem-v5.0.1 release as explained [here](https://wiki.st.com/stm32mpu/wiki/STM32MP1_Distribution_Package).
+- Add the meta-st-stm32mpu-app-logicanalyser layer (**mickledore** branch):
 ```
 PC $> cd <working_directory_path>/layers/meta-st
-PC $> git clone https://github.com/STMicroelectronics/meta-st-stm32mpu-app-logicanalyser.git -b kirkstone
+PC $> git clone https://github.com/STMicroelectronics/meta-st-stm32mpu-app-logicanalyser.git -b mickledore
 ```
 - Configure the build environment as explained [here](https://wiki.st.com/stm32mpu/wiki/STM32MP1_Distribution_Package#Initializing_the_OpenEmbedded_build_environment):
   - DISTRO  = **openstlinux-weston**
@@ -67,8 +67,8 @@ PC $> bitbake st-image-weston
 1. Press either the "USER1" button or the "USER2" button to start (resp. to stop) the example
 2. Select the sampling frequency (4 MHz per default)
 3. Start the sampling:
-- For high data rate (more than 5 MHz sampling), it relies on a SDB Linux driver which provides DDR buffers allocations, and DDR DMA transfers<br>
-- For low data rate (less or equal to 5MHz sampling), it relies on virtual UART over RPMSG<br>
+- For high data rate (more than 2 MHz sampling), it relies on a SDB Linux driver which provides DDR buffers allocations, and DDR DMA transfers<br>
+- For low data rate (less or equal to 2 MHz sampling), it relies on virtual UART over RPMSG<br>
 - Data compression algorithm is done on Cortex-M4 side<br>
 - Compressed buffers are transfered to DDR by DMA or virtual UART<br>
 - In order to insure dynamic input data on PE8..12, these ports are initialized as output. Values are changed every 23 times<br>

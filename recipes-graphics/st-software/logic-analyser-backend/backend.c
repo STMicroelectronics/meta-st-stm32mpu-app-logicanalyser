@@ -474,7 +474,7 @@ static void single_clicked (GtkWidget *widget, gpointer data)
 {
     char setData = 'n';
     if (mMachineState == STATE_READY) {
-        if (mSampFreq_Hz > 5) {
+        if (mSampFreq_Hz > 2) {
             mMachineState = STATE_SAMPLING_HIGH;
         } else {
             mMachineState = STATE_SAMPLING_LOW;
@@ -760,7 +760,7 @@ void *virtual_tty_thread(void *arg)
     while (1) {
         if (mThreadCancel) break;    // kill thread requested
 
-        // tty0 is used for low rate compressed data transfer (less or equal to 5MHz sampling)
+        // tty0 is used for low rate compressed data transfer (less or equal to 2MHz sampling)
         read0 = copro_readTtyRpmsg(0, SAMP_SRAM_PACKET_SIZE, mByteBuffer);
         if (read0 > 0) {
             mNbTty0Frame++;
