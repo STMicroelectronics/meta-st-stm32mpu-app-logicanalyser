@@ -1,17 +1,17 @@
-From c3f5a767c053becfa8abce6d8cc5fa308f94249b Mon Sep 17 00:00:00 2001
+From 8bc8048c0ea507ef3490ed9082d37e4a9a3d8940 Mon Sep 17 00:00:00 2001
 From: Jean-Christophe Trotin <jean-christophe.trotin@st.com>
-Date: Wed, 15 Nov 2023 16:14:07 +0100
+Date: Mon, 3 Mar 2025 18:12:26 +0100
 Subject: [PATCH] Device tree modifications for the logic analyzer demo
 
 ---
- arch/arm/boot/dts/stm32mp15xx-dkx.dtsi | 26 ++++++++++++++++++++++++++
+ arch/arm/boot/dts/st/stm32mp15xx-dkx.dtsi | 26 +++++++++++++++++++++++
  1 file changed, 26 insertions(+)
 
-diff --git a/arch/arm/boot/dts/stm32mp15xx-dkx.dtsi b/arch/arm/boot/dts/stm32mp15xx-dkx.dtsi
-index b1f02b092..2febeaccc 100644
---- a/arch/arm/boot/dts/stm32mp15xx-dkx.dtsi
-+++ b/arch/arm/boot/dts/stm32mp15xx-dkx.dtsi
-@@ -167,6 +167,29 @@ &crc1 {
+diff --git a/arch/arm/boot/dts/st/stm32mp15xx-dkx.dtsi b/arch/arm/boot/dts/st/stm32mp15xx-dkx.dtsi
+index 5fae7937c..0fe1cf999 100644
+--- a/arch/arm/boot/dts/st/stm32mp15xx-dkx.dtsi
++++ b/arch/arm/boot/dts/st/stm32mp15xx-dkx.dtsi
+@@ -189,6 +189,29 @@ &crc1 {
  	status = "okay";
  };
  
@@ -41,7 +41,7 @@ index b1f02b092..2febeaccc 100644
  &dts {
  	status = "okay";
  };
-@@ -511,6 +534,9 @@ &m4_rproc {
+@@ -540,6 +563,9 @@ &m4_rproc {
  	interrupts = <68 1>;
  	wakeup-source;
  	status = "okay";
@@ -52,5 +52,5 @@ index b1f02b092..2febeaccc 100644
  
  &pwr_regulators {
 -- 
-2.25.1
+2.34.1
 

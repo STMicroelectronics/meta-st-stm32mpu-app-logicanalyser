@@ -3,11 +3,11 @@
 ## Overview
 This layer contains the source code for the [**logic analyzer example**](https://wiki.st.com/stm32mpu/wiki/How_to_exchange_data_buffers_with_the_coprocessor).
 
-This example can be executed on the **STM32MP135C/F-DK2 Discovery kit** boards.
+This example can be executed on the **STM32MP157C/F-DK2 Discovery kit** boards.
 
 This layer is linked with the [**logicanalyser** project](https://github.com/STMicroelectronics/logicanalyser) that contains the source code of the STM32MP157 Cortex-M4 firmware for the logic analyzer example.
 
-This version is based on the [**STM32MP1-ecosystem-v5.0.1 ecosystem release**](https://wiki.st.com/stm32mpu/wiki/STM32_MPU_ecosystem_release_note_-_v5.0.0) of the STM32MPU Embedded Software distribution.
+This version is based on the [**STM32MPU-ecosystem-v6.0.0 ecosystem release**](https://wiki.st.com/stm32mpu/wiki/STM32_MPU_ecosystem_release_note_-_v6.0.0) of the STM32MPU Embedded Software distribution.
 
 The "mx machine" is not used: instead, a patch on the Linux device tree is provided.
 
@@ -37,31 +37,31 @@ The "mx machine" is not used: instead, a patch on the Linux device tree is provi
 ```
 PC $> cd <working_directory_path>
 ```
-- Fetch the **openstlinux-6.1-yocto-mickledore-mp1-v23.10.18** OpenSTLinux version delivered with the STM32MP1-ecosystem-v5.0.1 release as explained [here](https://wiki.st.com/stm32mpu/wiki/STM32MP1_Distribution_Package).
-- Add the meta-st-stm32mpu-app-logicanalyser layer (**mickledore** branch):
+- Fetch the **openstlinux-6.6-yocto-scarthgap-mpu-v24.11.06** OpenSTLinux version delivered with the STM32MPU-ecosystem-v6.0.0 release as explained [here](https://wiki.st.com/stm32mpu/wiki/STM32MP1_Distribution_Package).
+- Add the meta-st-stm32mpu-app-logicanalyser layer (**scarthgap** branch):
 ```
 PC $> cd <working_directory_path>/layers/meta-st
-PC $> git clone https://github.com/STMicroelectronics/meta-st-stm32mpu-app-logicanalyser.git -b mickledore
+PC $> git clone https://github.com/STMicroelectronics/meta-st-stm32mpu-app-logicanalyser.git -b scarthgap
 ```
 - Configure the build environment as explained [here](https://wiki.st.com/stm32mpu/wiki/STM32MP1_Distribution_Package#Initializing_the_OpenEmbedded_build_environment):
   - DISTRO  = **openstlinux-weston**
-  - MACHINE = **stm32mp1**
+  - MACHINE = **stm32mp15-disco**
   - IMAGE   = **st-image-weston**
 ```
 PC $> cd <working_directory_path>
-PC $> DISTRO=openstlinux-weston MACHINE=stm32mp1 source layers/meta-st/scripts/envsetup.sh
+PC $> DISTRO=openstlinux-weston MACHINE=stm32mp15-disco source layers/meta-st/scripts/envsetup.sh
 ```
-- Add the meta-st-stm32mpu-app-logicanalyser  layer to the image to build:
+- Add the meta-st-stm32mpu-app-logicanalyser layer to the image to build:
 ```
 PC $> pwd
 <working_directory_path>/build-openstlinuxweston-stm32mp1
 PC $> bitbake-layers add-layer ../layers/meta-st/meta-st-stm32mpu-app-logicanalyser
 ```
-- Build the image as explained [here](https://wiki.st.com/stm32mpu/wiki/STM32MP1_Distribution_Package#Building_the_OpenSTLinux_distribution):
+- Build the image as explained [here](https://wiki.st.com/stm32mpu/wiki/STM32MPU_Distribution_Package#Building_the_OpenSTLinux_distribution):
 ```
 PC $> bitbake st-image-weston
 ```
-- Populate the SD card thanks to the **STM32CubeProgrammer** tool as explained [here](https://wiki.st.com/stm32mpu/wiki/STM32MP13_Discovery_kits_-_Starter_Package#Image_flashing) or to the **create_sdcard_from_flashlayout.sh** script as explained [here](https://wiki.st.com/stm32mpu/wiki/How_to_populate_the_SD_card_with_dd_command).
+- Populate the SD card thanks to the **STM32CubeProgrammer** tool as explained [here](https://wiki.st.com/stm32mpu/wiki/STM32MP15_Discovery_kits_-_Starter_Package#Image_flashing) or to the **create_sdcard_from_flashlayout.sh** script as explained [here](https://wiki.st.com/stm32mpu/wiki/How_to_populate_the_SD_card_with_dd_command).
 
 ## 5. How to use the example?
 1. Press either the "USER1" button or the "USER2" button to start (resp. to stop) the example

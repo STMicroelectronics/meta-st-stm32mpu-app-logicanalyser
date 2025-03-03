@@ -29,8 +29,8 @@ do_install() {
     install -m 0755 ${B}/backend/keyboard 			${D}/usr/local/demo/la/bin/
     install -m 0755 ${B}/backend/run_la.sh          ${D}/usr/local/demo/la/
 
-    install -d ${D}/lib/firmware/
-    install -m 0644 ${STM32MPU_LOGICANALYSER_BASE}/recipes-graphics/st-software/logic-analyser-firmware/how2eldb04140.elf ${D}/lib/firmware/
+    install -d ${D}/usr/lib/firmware/
+    install -m 0644 ${STM32MPU_LOGICANALYSER_BASE}/recipes-graphics/st-software/logic-analyser-firmware/how2eldb04140.elf ${D}/usr/lib/firmware/
 
     # start at startup
     install -d ${D}/usr/local/weston-start-at-startup/
@@ -40,4 +40,4 @@ do_install() {
 FILES:${PN} += "/usr/local/demo/la/"
 FILES:${PN} += "/usr/local/demo/la/bin/"
 FILES:${PN} += "/usr/local/weston-start-at-startup/"
-FILES:${PN} += "/lib/firmware/"
+FILES:${PN} += "/usr/lib/firmware/"
